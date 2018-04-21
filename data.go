@@ -42,8 +42,8 @@ var (
 	}
 
 	deckList = map[string]int{
-		mountain.name:  3,
-		lavaSpike.name: 7,
+		mountain.name:  10,
+		lavaSpike.name: 20,
 	}
 )
 

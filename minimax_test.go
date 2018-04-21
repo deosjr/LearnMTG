@@ -55,7 +55,7 @@ func TestPlayerAct(t *testing.T) {
 		defer func() {
 			maxDepth = oldMax
 		}()
-		got := tt.p.act(tt.active)
+		got := tt.p.act(tt.active, precombatMainPhase)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -69,9 +69,9 @@ func TestGetActionsSelf(t *testing.T) {
 	}{
 		{
 			node: node{
-				pointOfView:  &player{name: "self"},
-				isActive:     false,
-				actionsTaken: []action{},
+				pointOfView: &player{name: "self"},
+				isActive:    false,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: pass, player: "self"},
@@ -88,8 +88,8 @@ func TestGetActionsSelf(t *testing.T) {
 					manaAvailable: 0,
 					lifeTotal:     20,
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: mountain.name, player: "self"},
@@ -107,8 +107,8 @@ func TestGetActionsSelf(t *testing.T) {
 					manaAvailable: 1,
 					lifeTotal:     20,
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: lavaSpike.name, player: "self"},
@@ -134,9 +134,9 @@ func TestGetActionsOpponent(t *testing.T) {
 	}{
 		{
 			node: node{
-				pointOfView:  &player{name: "self", opponent: &player{name: "opp"}},
-				isActive:     false,
-				actionsTaken: []action{},
+				pointOfView: &player{name: "self", opponent: &player{name: "opp"}},
+				isActive:    false,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: pass, player: "opp"},
@@ -157,8 +157,8 @@ func TestGetActionsOpponent(t *testing.T) {
 						deckList:      deckList,
 					},
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: mountain.name, player: "opp"},
@@ -180,8 +180,8 @@ func TestGetActionsOpponent(t *testing.T) {
 						deckList:      deckList,
 					},
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: lavaSpike.name, player: "opp"},
@@ -205,8 +205,8 @@ func TestGetActionsOpponent(t *testing.T) {
 						deckList:      deckList,
 					},
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: lavaSpike.name, player: "opp"},
@@ -226,8 +226,8 @@ func TestGetActionsOpponent(t *testing.T) {
 						deckList:      deckList,
 					},
 				},
-				isActive:     true,
-				actionsTaken: []action{},
+				isActive:    true,
+				currentStep: precombatMainPhase,
 			},
 			want: []action{
 				{card: pass, player: "opp"},

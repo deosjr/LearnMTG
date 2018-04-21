@@ -18,6 +18,9 @@ type action struct {
 }
 
 func (a action) execute(p *player) {
+	if a.card == pass {
+		return
+	}
 	p.hand[a.card] -= 1
 	if p.hand[a.card] == 0 {
 		delete(p.hand, a.card)
@@ -85,9 +88,6 @@ func main() {
 			fmt.Printf("%s turn %d: %s VS %s \n", activePlayer.name, turn, activePlayer.String(), activePlayer.opponent.String())
 			turn = i/2 + 1
 			activePlayer = activePlayer.opponent
-			if i > 8 {
-				break
-			}
 		}
 		gameEnds := checkStateBasedActions(activePlayer)
 		if gameEnds {
@@ -95,13 +95,12 @@ func main() {
 			fmt.Printf("%s turn %d: %s VS %s \n", activePlayer.name, turn, activePlayer.String(), activePlayer.opponent.String())
 			break
 		}
-		action := playerToAct.act(activePlayer == playerToAct)
+		action := playerToAct.act(activePlayer == playerToAct, currentStep)
 		if action.card == pass {
 			// if opponentPassed {
 			currentStep = (currentStep + 1) % numSteps
 			// }
 			//opponentPassed = true
-			continue
 			//} else {
 			//	opponentPassed = false
 		}

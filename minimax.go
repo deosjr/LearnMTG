@@ -5,21 +5,21 @@ import (
 )
 
 type node struct {
-	pointOfView  *player
-	isActive     bool
-	actionsTaken []action
+	pointOfView *player
+	isActive    bool
+	currentStep step
 }
 
 func minimax(node node, depth int, maximizingPlayer bool) float64 {
-	p := node.simulate()
-	if depth == 0 || node.isTerminal(p) {
-		score := node.evaluate(p)
+	if depth == 0 || node.isTerminal(node.pointOfView) {
+		score := node.evaluate(node.pointOfView, depth)
 		return score
 	}
 
 	if maximizingPlayer {
 		bestValue := -math.MaxFloat64
-		for _, child := range node.getChildren(node.pointOfView) {
+		for _, childAction := range node.getChildActions(node.pointOfView) {
+			child := node.getChild(childAction)
 			v := minimax(child, depth-1, false)
 			bestValue = math.Max(bestValue, v)
 		}
@@ -27,7 +27,8 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 	}
 	// minimizing player
 	bestValue := math.MaxFloat64
-	for _, child := range node.getChildren(node.pointOfView.opponent) {
+	for _, childAction := range node.getChildActions(node.pointOfView.opponent) {
+		child := node.getChild(childAction)
 		v := minimax(child, depth-1, true)
 		bestValue = math.Min(bestValue, v)
 	}
@@ -36,26 +37,28 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 
 // we evaluate a node with children, not a complete tree
 // per child we need to build the tree one layer further
-func (n node) getChildren(p *player) []node {
-	var actions []action
+func (n node) getChildActions(p *player) []action {
 	if p == n.pointOfView {
-		actions = n.getActionsSelf()
-	} else {
-		actions = n.getActionsOpponent()
+		return n.getActionsSelf()
 	}
-
-	children := make([]node, len(actions))
-	for i, a := range actions {
-		newActions := append(n.actionsTaken, a)
-		children[i] = node{
-			pointOfView:  n.pointOfView,
-			actionsTaken: newActions,
-			isActive:     !n.isActive,
-		}
-	}
-	return children
+	return n.getActionsOpponent()
 }
 
+func (n node) getChild(a action) node {
+	p := n.pointOfView.copy()
+	a.execute(p) // TODO: possible opponents action instead?
+	if a.card == pass {
+		n.currentStep = n.currentStep + 1
+	}
+	playerToAct, newStep, _ := playUntilPriority(p, n.currentStep)
+	return node{
+		pointOfView: p,
+		isActive:    p == playerToAct,
+		currentStep: newStep,
+	}
+}
+
+// TODO: (self and opp): take step/phase into account
 func (n node) getActionsSelf() []action {
 	passAction := action{card: pass, player: n.pointOfView.name}
 	actions := []action{passAction}
@@ -101,36 +104,16 @@ Loop:
 	return actions
 }
 
-// reproduce the current board state by replaying actions
-// TODO: simulate going through phases/steps
-func (n node) simulate() *player {
-	// copy player and opponent
-	p, opp := n.pointOfView.copy(), n.pointOfView.opponent.copy()
-	p.opponent, opp.opponent = opp, p
-
-	for _, action := range n.actionsTaken {
-		if action.card == pass {
-			continue
-		}
-		actingPlayer := p
-		if action.player == opp.name {
-			actingPlayer = opp
-		}
-		action.execute(actingPlayer)
-	}
-	return p
-}
-
 // use an arbitrarily large number because I
 // don't want to calculate using actual MaxFloat64
 const infinity float64 = 1000000.0
 
 // evaluate payoff function
-func (n node) evaluate(p *player) float64 {
+func (n node) evaluate(p *player, depth int) float64 {
 	opp := p.opponent
 	if opp.lifeTotal <= 0 || opp.decked {
 		// penalise lang term plans: winning earlier is better!
-		return infinity - float64(len(n.actionsTaken))
+		return infinity - float64(-depth)
 	}
 	if p.lifeTotal <= 0 || p.decked {
 		return -infinity
@@ -138,7 +121,7 @@ func (n node) evaluate(p *player) float64 {
 
 	// TODO: weights per feature
 	lifeDiff := float64(p.lifeTotal - opp.lifeTotal)
-	return lifeDiff + float64(p.manaTotal) - float64(len(n.actionsTaken))
+	return lifeDiff + float64(p.manaTotal) - float64(-depth)
 }
 
 //does the game end in this configuration next state-based check?

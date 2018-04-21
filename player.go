@@ -32,6 +32,16 @@ func (p *player) copy() *player {
 	for k, v := range p.hand {
 		newP.hand[k] = v
 	}
+
+	newOpp := &player{}
+	*newOpp = *p.opponent
+	newOpp.hand = map[string]int{}
+	for k, v := range p.opponent.hand {
+		newOpp.hand[k] = v
+	}
+
+	newP.opponent, newOpp.opponent = newOpp, newP
+
 	return newP
 }
 
@@ -77,16 +87,17 @@ func newPlayer(name string, deckList map[string]int) *player {
 
 var maxDepth = 10
 
-func (p *player) act(isActive bool) action {
-	root := node{pointOfView: p, isActive: isActive}
-	children := root.getChildren(p)
+func (p *player) act(isActive bool, currentStep step) action {
+	root := node{pointOfView: p, isActive: isActive, currentStep: currentStep}
+	childActions := root.getChildActions(p)
 	var a action
 	bestValue := -math.MaxFloat64
-	for _, child := range children {
+	for _, childAction := range childActions {
+		child := root.getChild(childAction)
 		v := minimax(child, maxDepth, false)
 		if v > bestValue {
 			bestValue = v
-			a = child.actionsTaken[0]
+			a = childAction
 		}
 	}
 	if a.card == "" {
