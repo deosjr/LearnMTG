@@ -15,39 +15,53 @@ var fullMountainLibrary = []string{
 	mountain.name, mountain.name, mountain.name, mountain.name, mountain.name,
 }
 
-func TestPlayerAct(t *testing.T) {
+func TestGetPlayerAction(t *testing.T) {
 	for i, tt := range []struct {
-		p      *player
-		active bool
-		want   action
+		g    *game
+		want action
 	}{
 		{
-			p: &player{
-				name:     "self",
-				opponent: &player{name: "opp", library: fullMountainLibrary},
-				library:  fullMountainLibrary,
+			g: &game{
+				players: []*player{
+					0: &player{
+						name:    "self",
+						library: fullMountainLibrary,
+					},
+					1: &player{
+						name:    "opp",
+						library: fullMountainLibrary,
+					},
+				},
+				priorityPlayer: 0,
+				activePlayer:   1,
+				currentStep:    precombatMainPhase,
 			},
-			active: false,
-			want:   action{card: pass, player: "self"},
+			want: action{card: pass, playerSelf: 0},
 		},
 		{
-			p: &player{
-				name: "self",
-				opponent: &player{
-					name:      "opp",
-					lifeTotal: 3,
-					library:   fullMountainLibrary,
+			g: &game{
+				players: []*player{
+					0: &player{
+						name: "self",
+						hand: map[string]int{
+							mountain.name:  1,
+							lavaSpike.name: 1,
+						},
+						library:       fullMountainLibrary,
+						manaAvailable: 1,
+						lifeTotal:     20,
+					},
+					1: &player{
+						name:      "opp",
+						lifeTotal: 3,
+						library:   fullMountainLibrary,
+					},
 				},
-				hand: map[string]int{
-					mountain.name:  1,
-					lavaSpike.name: 1,
-				},
-				library:       fullMountainLibrary,
-				manaAvailable: 1,
-				lifeTotal:     20,
+				priorityPlayer: 0,
+				activePlayer:   0,
+				currentStep:    precombatMainPhase,
 			},
-			active: true,
-			want:   action{card: lavaSpike.name, player: "self"},
+			want: action{card: lavaSpike.name, playerSelf: 0, playerTarget: 1},
 		},
 	} {
 		oldMax := maxDepth
@@ -55,7 +69,8 @@ func TestPlayerAct(t *testing.T) {
 		defer func() {
 			maxDepth = oldMax
 		}()
-		got := tt.p.act(tt.active, precombatMainPhase)
+		tt.g.numPlayers = 2
+		got := tt.g.getPlayerAction()
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -69,51 +84,71 @@ func TestGetActionsSelf(t *testing.T) {
 	}{
 		{
 			node: node{
-				pointOfView: &player{name: "self"},
-				isActive:    false,
-				currentStep: precombatMainPhase,
+				game: &game{
+					players: []*player{
+						0: &player{name: "self"},
+						1: &player{name: "opp"},
+					},
+					activePlayer: 1,
+					currentStep:  precombatMainPhase,
+				},
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: pass, player: "self"},
+				{card: pass, playerSelf: 0},
 			},
 		},
 		{
 			node: node{
-				pointOfView: &player{
-					name: "self",
-					hand: map[string]int{
-						mountain.name:  2,
-						lavaSpike.name: 3,
+				game: &game{
+					players: []*player{
+						0: &player{
+							name: "self",
+							hand: map[string]int{
+								mountain.name:  2,
+								lavaSpike.name: 3,
+							},
+							manaAvailable: 0,
+							lifeTotal:     20,
+						},
+						1: &player{name: "opp"},
 					},
-					manaAvailable: 0,
-					lifeTotal:     20,
+
+					activePlayer: 0,
+					currentStep:  precombatMainPhase,
 				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: mountain.name, player: "self"},
-				{card: pass, player: "self"},
+				{card: mountain.name, playerSelf: 0},
+				{card: pass, playerSelf: 0},
 			},
 		},
 		{
 			node: node{
-				pointOfView: &player{
-					name: "self",
-					hand: map[string]int{
-						mountain.name:  2,
-						lavaSpike.name: 3,
+				game: &game{
+					players: []*player{
+						0: &player{
+							name: "self",
+							hand: map[string]int{
+								mountain.name:  2,
+								lavaSpike.name: 3,
+							},
+							manaAvailable: 1,
+							lifeTotal:     20,
+						},
+						1: &player{name: "opp"},
 					},
-					manaAvailable: 1,
-					lifeTotal:     20,
+
+					activePlayer: 0,
+					currentStep:  precombatMainPhase,
 				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: lavaSpike.name, player: "self"},
-				{card: mountain.name, player: "self"},
-				{card: pass, player: "self"},
+				{card: lavaSpike.name, playerSelf: 0, playerTarget: 1},
+				{card: mountain.name, playerSelf: 0},
+				{card: pass, playerSelf: 0},
 			},
 		},
 	} {
@@ -134,103 +169,102 @@ func TestGetActionsOpponent(t *testing.T) {
 	}{
 		{
 			node: node{
-				pointOfView: &player{name: "self", opponent: &player{name: "opp"}},
-				isActive:    false,
-				currentStep: precombatMainPhase,
+				game: &game{
+					players: []*player{
+						0: &player{name: "self"},
+						1: &player{name: "opp"},
+					},
+					activePlayer: 0,
+					currentStep:  precombatMainPhase,
+				},
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: pass, player: "opp"},
+				{card: pass, playerSelf: 1},
 			},
 		},
 		{
 			node: node{
-				pointOfView: &player{
-					name: "self",
-					opponent: &player{
-						name: "opp",
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+				game: &game{
+					players: []*player{
+						0: &player{
+							name: "self",
 						},
-						manaAvailable: 0,
-						lifeTotal:     20,
-						deckList:      deckList,
-					},
-				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
-			},
-			want: []action{
-				{card: mountain.name, player: "opp"},
-				{card: pass, player: "opp"},
-			},
-		},
-		{
-			node: node{
-				pointOfView: &player{
-					name: "self",
-					opponent: &player{
-						name: "opp",
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						1: &player{
+							name: "opp",
+							hand: map[string]int{
+								mountain.name:  2,
+								lavaSpike.name: 3,
+							},
+							manaAvailable: 0,
+							lifeTotal:     20,
+							deckList:      deckList,
 						},
-						manaAvailable: 1,
-						lifeTotal:     20,
-						deckList:      deckList,
 					},
+
+					activePlayer: 1,
+					currentStep:  precombatMainPhase,
 				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: lavaSpike.name, player: "opp"},
-				{card: mountain.name, player: "opp"},
-				{card: pass, player: "opp"},
+				{card: mountain.name, playerSelf: 1},
+				{card: pass, playerSelf: 1},
 			},
 		},
-		// opponent on all lands but we dont know?
-		// guess based on their decklist
 		{
 			node: node{
-				pointOfView: &player{
-					name: "self",
-					opponent: &player{
-						name: "opp",
-						hand: map[string]int{
-							mountain.name: 2,
+				game: &game{
+					players: []*player{
+						0: &player{
+							name: "self",
 						},
-						manaAvailable: 1,
-						lifeTotal:     20,
-						deckList:      deckList,
+						1: &player{
+							name: "opp",
+							hand: map[string]int{
+								mountain.name:  2,
+								lavaSpike.name: 3,
+							},
+							manaAvailable: 1,
+							lifeTotal:     20,
+							deckList:      deckList,
+						},
 					},
+
+					activePlayer: 1,
+					currentStep:  precombatMainPhase,
 				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: lavaSpike.name, player: "opp"},
-				{card: mountain.name, player: "opp"},
-				{card: pass, player: "opp"},
+				{card: lavaSpike.name, playerSelf: 1, playerTarget: 0},
+				{card: mountain.name, playerSelf: 1},
+				{card: pass, playerSelf: 1},
 			},
 		},
 		{
 			node: node{
-				pointOfView: &player{
-					name: "self",
-					opponent: &player{
-						name:          "opp",
-						hand:          map[string]int{},
-						manaAvailable: 1,
-						lifeTotal:     20,
-						deckList:      deckList,
+				game: &game{
+					players: []*player{
+						0: &player{
+							name: "self",
+						},
+						1: &player{
+							name:          "opp",
+							hand:          map[string]int{},
+							manaAvailable: 1,
+							lifeTotal:     20,
+							deckList:      deckList,
+						},
 					},
+
+					activePlayer: 1,
+					currentStep:  precombatMainPhase,
 				},
-				isActive:    true,
-				currentStep: precombatMainPhase,
+				pointOfView: 0,
 			},
 			want: []action{
-				{card: pass, player: "opp"},
+				{card: pass, playerSelf: 1},
 			},
 		},
 	} {

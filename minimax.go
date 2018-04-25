@@ -5,29 +5,28 @@ import (
 )
 
 type node struct {
-	pointOfView *player
-	isActive    bool
-	currentStep step
+	game        *game
+	pointOfView int
 }
 
 func minimax(node node, depth int, maximizingPlayer bool) float64 {
-	if depth == 0 || node.isTerminal(node.pointOfView) {
-		score := node.evaluate(node.pointOfView, depth)
+	if depth == 0 || node.isTerminal() {
+		score := node.evaluate(depth)
 		return score
 	}
 
 	if maximizingPlayer {
 		bestValue := -math.MaxFloat64
-		for _, childAction := range node.getChildActions(node.pointOfView) {
+		for _, childAction := range node.getActionsSelf() {
 			child := node.getChild(childAction)
 			v := minimax(child, depth-1, false)
 			bestValue = math.Max(bestValue, v)
 		}
 		return bestValue
 	}
-	// minimizing player
+	// minimizing player (two player game for now)
 	bestValue := math.MaxFloat64
-	for _, childAction := range node.getChildActions(node.pointOfView.opponent) {
+	for _, childAction := range node.getActionsOpponent() {
 		child := node.getChild(childAction)
 		v := minimax(child, depth-1, true)
 		bestValue = math.Min(bestValue, v)
@@ -35,45 +34,40 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 	return bestValue
 }
 
-// we evaluate a node with children, not a complete tree
-// per child we need to build the tree one layer further
-func (n node) getChildActions(p *player) []action {
-	if p == n.pointOfView {
-		return n.getActionsSelf()
-	}
-	return n.getActionsOpponent()
-}
-
 func (n node) getChild(a action) node {
-	p := n.pointOfView.copy()
-	a.execute(p) // TODO: possible opponents action instead?
+	g := n.game.copy()
+	a.execute(g.getActivePlayer(), g.getOpponent(g.activePlayer))
+
+	// is this still needed?
 	if a.card == pass {
-		n.currentStep = n.currentStep + 1
+		g.currentStep = g.currentStep + 1
 	}
-	playerToAct, newStep, _ := playUntilPriority(p, n.currentStep)
+
+	g.playUntilPriority()
 	return node{
-		pointOfView: p,
-		isActive:    p == playerToAct,
-		currentStep: newStep,
+		game:        g,
+		pointOfView: n.pointOfView,
 	}
 }
 
-// TODO: (self and opp): take step/phase into account
+// TODO: take step/phase into account
 func (n node) getActionsSelf() []action {
-	passAction := action{card: pass, player: n.pointOfView.name}
+	passAction := action{card: pass, playerSelf: n.pointOfView}
 	actions := []action{passAction}
-	if !n.isActive {
+	if n.pointOfView != n.game.activePlayer {
 		return actions
 	}
+	p := n.game.getPlayer(n.pointOfView)
 Loop:
-	for k, _ := range n.pointOfView.hand {
+	for k, _ := range p.hand {
 		card := cards[k]
 		for _, prereq := range card.prereqs {
-			if !prereq(n.pointOfView) {
+			if !prereq(p) {
 				continue Loop
 			}
 		}
-		action := action{card: card.name, player: n.pointOfView.name}
+		// again, two player game assumption for now
+		action := action{card: card.name, playerSelf: n.pointOfView, playerTarget: (n.pointOfView + 1) % 2}
 		actions = append(actions, action)
 	}
 	return actions
@@ -81,24 +75,27 @@ Loop:
 
 // TODO: deal with incomplete information!
 func (n node) getActionsOpponent() []action {
-	passAction := action{card: pass, player: n.pointOfView.opponent.name}
+	// again, two player game assumption for now
+	oppIndex := (n.pointOfView + 1) % 2
+	passAction := action{card: pass, playerSelf: oppIndex}
+	opp := n.game.getPlayer(oppIndex)
 	actions := []action{passAction}
-	if !n.isActive || len(n.pointOfView.opponent.hand) == 0 {
+	if oppIndex != n.game.activePlayer || len(opp.hand) == 0 {
 		return actions
 	}
 	// worst-case assumption: player always has all possible cards
 	// extra prereq: they have at least 1 card in hand
 Loop:
-	for k, _ := range n.pointOfView.opponent.deckList {
+	for k, _ := range opp.deckList {
 		card := cards[k]
 		for _, prereq := range card.prereqs {
 			// this means we only check prereqs against what we know
 			// may have to change that to a probability prereq is met
-			if !prereq(n.pointOfView.opponent) {
+			if !prereq(opp) {
 				continue Loop
 			}
 		}
-		action := action{card: card.name, player: n.pointOfView.opponent.name}
+		action := action{card: card.name, playerSelf: oppIndex, playerTarget: n.pointOfView}
 		actions = append(actions, action)
 	}
 	return actions
@@ -109,8 +106,9 @@ Loop:
 const infinity float64 = 1000000.0
 
 // evaluate payoff function
-func (n node) evaluate(p *player, depth int) float64 {
-	opp := p.opponent
+func (n node) evaluate(depth int) float64 {
+	p := n.game.getPlayer(n.pointOfView)
+	opp := n.game.getOpponent(n.pointOfView)
 	if opp.lifeTotal <= 0 || opp.decked {
 		// penalise lang term plans: winning earlier is better!
 		return infinity - float64(-depth)
@@ -125,7 +123,7 @@ func (n node) evaluate(p *player, depth int) float64 {
 }
 
 //does the game end in this configuration next state-based check?
-func (n node) isTerminal(p *player) bool {
+func (n node) isTerminal() bool {
 	// NOTE: needs to only consider game ending state based actions
-	return checkStateBasedActions(p)
+	return n.game.checkStateBasedActions()
 }

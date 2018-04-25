@@ -12,28 +12,53 @@ var (
 		prereqs: []prerequisiteFunc{
 			func(p *player) bool { return !p.landPlayed },
 		},
-		effect: func(p *player) {
-			// Maybe move all of this to 'execute play land action' ?
-			p.landPlayed = true
-			// TODO: land enters the battlefield
-			p.manaTotal += 1
-			p.manaAvailable += 1
+		effects: []effectFunc{
+			func(p, _ *player) {
+				// Maybe move all of this to 'execute play land action' ?
+				p.landPlayed = true
+				// TODO: land enters the battlefield
+				p.manaTotal += 1
+				p.manaAvailable += 1
+			},
 		},
 	}
 
 	lavaSpike = card{
-		name: "Lava Spike",
+		name:     "Lava Spike",
+		manacost: manacost{r: 1},
 		prereqs: []prerequisiteFunc{
 			func(p *player) bool {
 				// TODO: target available (lets ignore hexproof players for now)
 				return p.manaAvailable >= 1
 			},
 		},
-		effect: func(p *player) {
-			p.manaAvailable -= 1
-			// TODO: lava spike can target self!
-			p.opponent.lifeTotal -= 3
+		effects: []effectFunc{
+			func(p, _ *player) {
+				p.manaAvailable -= 1
+			},
+			func(_, opp *player) {
+				// TODO: lava spike can target self!
+				opp.lifeTotal -= 3
+			},
 		},
+	}
+
+	falkenrathReaver = card{
+		name:     "Falkenrath Reaver",
+		manacost: manacost{c: 1, r: 1},
+		prereqs: []prerequisiteFunc{
+			func(p *player) bool {
+				return p.manaAvailable >= 2
+			},
+		},
+		effects: []effectFunc{
+			func(p, _ *player) {
+				p.manaAvailable -= 2
+			},
+			// TODO: creature enters the battlefield
+		},
+		//power:     2,
+		//toughness: 2,
 	}
 
 	cards = map[string]card{
@@ -47,24 +72,53 @@ var (
 	}
 )
 
-// Eventually this will be a hierarchy
-// i.e. lands all share some prerequisites and effects
-// A type-token distinction needs to be made at some point
 type card struct {
-	name    string
-	prereqs []prerequisiteFunc
-	effect  effectFunc
+	name     string
+	manacost manacost
+	prereqs  []prerequisiteFunc
+	effects  []effectFunc
 }
 
-type prerequisiteFunc func(*player) bool
-type effectFunc func(*player)
+type manacost struct {
+	c, w, u, b, r, g int
+}
 
-type Permanent interface{}
+// TODO: on effect -> go on stack (except lands)
+// onResolve -> type specific (go to battlefield/graveyard)
+// and card specific (resolve sorcery/instant effect)
+
+// TODO: stack -> first good reason for generic game state struct
+// --> implies rewrite of minimax and main
+
+// TODO: breakdown effectFunc into types by target
+
+type prerequisiteFunc func(*player) bool
+type effectFunc func(*player, *player)
+
+// TODO: tap is for tokens, P/T on creature is about type!
+type Permanent interface {
+	tap() (success bool)
+}
+
 type permanent struct {
 	isTapped bool
 }
+
+func (p *permanent) tap() (success bool) {
+	if p.isTapped {
+		return false
+	}
+	p.isTapped = true
+	return true
+}
+
 type land struct {
 	permanent
+}
+type creature struct {
+	permanent
+	power     int
+	toughness int
 }
 
 // TODO
