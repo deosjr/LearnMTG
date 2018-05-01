@@ -12,13 +12,15 @@ var (
 		prereqs: []prerequisiteFunc{
 			func(p *player) bool { return !p.landPlayed },
 		},
-		effects: []effectFunc{
-			func(p, _ *player) {
+		effects: []effect{
+			selfEffect{
+			effect: func(p *player) {
 				// Maybe move all of this to 'execute play land action' ?
 				p.landPlayed = true
 				// TODO: land enters the battlefield
 				p.manaTotal += 1
 				p.manaAvailable += 1
+				},
 			},
 		},
 	}
@@ -29,16 +31,20 @@ var (
 		prereqs: []prerequisiteFunc{
 			func(p *player) bool {
 				// TODO: target available (lets ignore hexproof players for now)
+				// --> this is handled by possibleTargets returning 0 actions
 				return p.manaAvailable >= 1
 			},
 		},
-		effects: []effectFunc{
-			func(p, _ *player) {
+		effects: []effect{
+			selfEffect{
+			effect: func(p *player) {
 				p.manaAvailable -= 1
+				},
 			},
-			func(_, opp *player) {
-				// TODO: lava spike can target self!
-				opp.lifeTotal -= 3
+			playerEffect{
+				effect:func(p *player) {
+				p.lifeTotal -= 3
+				},
 			},
 		},
 	}
@@ -51,11 +57,13 @@ var (
 				return p.manaAvailable >= 2
 			},
 		},
-		effects: []effectFunc{
-			func(p, _ *player) {
+		effects: []effect{
+			selfEffect{
+			effect: func(p *player) {
 				p.manaAvailable -= 2
 			},
 			// TODO: creature enters the battlefield
+			},
 		},
 		//power:     2,
 		//toughness: 2,
@@ -76,9 +84,10 @@ type card struct {
 	name     string
 	manacost manacost
 	prereqs  []prerequisiteFunc
-	effects  []effectFunc
+	effects  []effect
 }
 
+// TODO: generate manacost prereq funcs using closures?
 type manacost struct {
 	c, w, u, b, r, g int
 }
@@ -87,13 +96,56 @@ type manacost struct {
 // onResolve -> type specific (go to battlefield/graveyard)
 // and card specific (resolve sorcery/instant effect)
 
-// TODO: stack -> first good reason for generic game state struct
-// --> implies rewrite of minimax and main
+// For permanent targets this might get hairy if they change
+// but players never change so this is simple
+type effect interface {
+	possibleTargets(controllingPlayer int, game *game) []effect
+	apply(*game)  
+}
 
-// TODO: breakdown effectFunc into types by target
+type selfEffect struct{
+	target int
+	effect func(*player)
+}
+
+func (e selfEffect) possibleTargets(controllingPlayer int, game *game) []effect {
+	return []effect{
+		selfEffect{
+			target: controllingPlayer,
+			effect: e.effect,
+		},
+	}
+}
+
+func (e selfEffect) apply(game *game) {
+	p := game.getPlayer(e.target)
+	e.effect(p)
+}
+
+type playerEffect struct {
+	controller int
+	target int
+	effect func(*player)
+}
+
+func (e playerEffect) possibleTargets(controllingPlayer int, game *game) []effect {
+	effects := []effect{}
+	for i := 0; i < game.numPlayers; i++ {
+		pe := playerEffect{
+			target: i,
+			effect: e.effect,
+		}
+		effects = append(effects, pe)
+	}
+	return effects
+}
+
+func (e playerEffect) apply(game *game) {
+	p := game.getPlayer(e.target)
+	e.effect(p)
+}
 
 type prerequisiteFunc func(*player) bool
-type effectFunc func(*player, *player)
 
 // TODO: tap is for tokens, P/T on creature is about type!
 type Permanent interface {

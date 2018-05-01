@@ -43,9 +43,12 @@ type game struct {
 	numPlayers     int
 }
 
-func newGame(players []*player) *game {
+func newGame(players ...*player) *game {
 	numPlayers := len(players)
 	startingPlayer := rand.Intn(numPlayers)
+	for _, p := range players {
+		p.drawN(7)
+	}
 	return &game{
 		players:        players,
 		currentStep:    precombatMainPhase,
@@ -54,6 +57,20 @@ func newGame(players []*player) *game {
 		priorityPlayer: startingPlayer,
 		startingPlayer: startingPlayer,
 		numPlayers:     numPlayers,
+	}
+}
+
+func (g *game) loop() {
+	for {
+		g.playUntilPriority()
+		if gameEnds := g.checkStateBasedActions(); gameEnds {
+			fmt.Println("End of game")
+			break
+		}
+		action := g.getPlayerAction()
+		fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
+		g.execute(action)
+		g.debug()
 	}
 }
 
@@ -153,6 +170,30 @@ func (g *game) debug() {
 	fmt.Printf("%s turn %d: %s VS %s \n", activePlayer.name, g.turn, activePlayer.String(), opp.String())
 }
 
+var pass = "PASS"
+var passAction = action{card:pass}
+
+type action struct {
+	card         string
+	controller   int
+	effects 	 []effect
+}
+
+func (g *game) execute(a action) {
+	if a.card == pass {
+		g.nextStep()
+		return
+	}
+	p := g.getPlayer(a.controller)
+	p.hand[a.card] -= 1
+	if p.hand[a.card] == 0 {
+		delete(p.hand, a.card)
+	}
+	for _, effect := range a.effects {
+		effect.apply(g)
+	}
+}
+
 var maxDepth = 10
 
 func (g *game) getPlayerAction() action {
@@ -171,7 +212,7 @@ func (g *game) getPlayerAction() action {
 	}
 	if a.card == "" {
 		// TODO: all options lead to certain death
-		return action{card: pass, playerSelf: index}
+		return passAction
 	}
 	return a
 }

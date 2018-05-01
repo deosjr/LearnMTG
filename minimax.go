@@ -36,7 +36,7 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 
 func (n node) getChild(a action) node {
 	g := n.game.copy()
-	a.execute(g.getActivePlayer(), g.getOpponent(g.activePlayer))
+	g.execute(a)
 
 	// is this still needed?
 	if a.card == pass {
@@ -50,9 +50,7 @@ func (n node) getChild(a action) node {
 	}
 }
 
-// TODO: take step/phase into account
 func (n node) getActionsSelf() []action {
-	passAction := action{card: pass, playerSelf: n.pointOfView}
 	actions := []action{passAction}
 	if n.pointOfView != n.game.activePlayer {
 		return actions
@@ -66,9 +64,7 @@ Loop:
 				continue Loop
 			}
 		}
-		// again, two player game assumption for now
-		action := action{card: card.name, playerSelf: n.pointOfView, playerTarget: (n.pointOfView + 1) % 2}
-		actions = append(actions, action)
+		actions = append(actions, getCardActions(card, n.pointOfView, n.game)...)
 	}
 	return actions
 }
@@ -77,7 +73,6 @@ Loop:
 func (n node) getActionsOpponent() []action {
 	// again, two player game assumption for now
 	oppIndex := (n.pointOfView + 1) % 2
-	passAction := action{card: pass, playerSelf: oppIndex}
 	opp := n.game.getPlayer(oppIndex)
 	actions := []action{passAction}
 	if oppIndex != n.game.activePlayer || len(opp.hand) == 0 {
@@ -95,7 +90,37 @@ Loop:
 				continue Loop
 			}
 		}
-		action := action{card: card.name, playerSelf: oppIndex, playerTarget: n.pointOfView}
+		actions = append(actions, getCardActions(card, oppIndex, n.game)...)
+	}
+	return actions
+}
+
+func getCardActions(card card, controller int, game *game) []action {
+	actions := []action{}
+	effects := [][]effect{}
+	for _, e := range card.effects {
+		effects = append(effects, e.possibleTargets(controller, game))
+	}
+	// Multi-target combinatorics (TODO: with constraints such as no same target!)
+	if len(effects) == 0 {
+		return actions
+	}
+	oldArr := [][]effect{}
+	for _, e := range effects[0] {
+		oldArr = append(oldArr, []effect{e})
+	}
+	newArr := [][]effect{}
+	for _, ea := range effects[1:] {
+		for _, e := range ea {
+			for _, oe := range oldArr {
+				newArr = append(newArr, append(oe, e))
+			}
+		}
+		oldArr = newArr
+		newArr = [][]effect{}
+	}
+	for _, e := range oldArr {
+		action := action{card: card.name, controller: controller, effects: e}
 		actions = append(actions, action)
 	}
 	return actions
