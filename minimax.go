@@ -36,12 +36,8 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 
 func (n node) getChild(a action) node {
 	g := n.game.copy()
-	g.execute(a)
-
-	// is this still needed?
-	if a.card == pass {
-		g.currentStep = g.currentStep + 1
-	}
+	g.play(a)
+	g.resolve(a)
 
 	g.playUntilPriority()
 	return node{
@@ -56,13 +52,10 @@ func (n node) getActionsSelf() []action {
 		return actions
 	}
 	p := n.game.getPlayer(n.pointOfView)
-Loop:
 	for k, _ := range p.hand {
 		card := cards[k]
-		for _, prereq := range card.prereqs {
-			if !prereq(p) {
-				continue Loop
-			}
+		if !p.canPlayCard(card) {
+			continue
 		}
 		actions = append(actions, getCardActions(card, n.pointOfView, n.game)...)
 	}
@@ -80,15 +73,10 @@ func (n node) getActionsOpponent() []action {
 	}
 	// worst-case assumption: player always has all possible cards
 	// extra prereq: they have at least 1 card in hand
-Loop:
 	for k, _ := range opp.deckList {
 		card := cards[k]
-		for _, prereq := range card.prereqs {
-			// this means we only check prereqs against what we know
-			// may have to change that to a probability prereq is met
-			if !prereq(opp) {
-				continue Loop
-			}
+		if !opp.canPlayCard(card) {
+			continue
 		}
 		actions = append(actions, getCardActions(card, oppIndex, n.game)...)
 	}
@@ -96,6 +84,9 @@ Loop:
 }
 
 func getCardActions(card card, controller int, game *game) []action {
+	if card.effects == nil {
+		return []action{action{card: card.name, controller: controller}}
+	}
 	actions := []action{}
 	effects := [][]effect{}
 	for _, e := range card.effects {

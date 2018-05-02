@@ -68,9 +68,12 @@ func (g *game) loop() {
 			break
 		}
 		action := g.getPlayerAction()
-		fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
-		g.execute(action)
-		g.debug()
+		g.play(action)
+		g.resolve(action)
+		if action.card != pass {
+			fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
+			g.debug()
+		}
 	}
 }
 
@@ -171,24 +174,45 @@ func (g *game) debug() {
 }
 
 var pass = "PASS"
-var passAction = action{card:pass}
+var passAction = action{card: pass}
 
 type action struct {
-	card         string
-	controller   int
-	effects 	 []effect
+	card       string
+	controller int
+	effects    []effect
 }
 
-func (g *game) execute(a action) {
+func (g *game) play(a action) {
 	if a.card == pass {
-		g.nextStep()
 		return
 	}
 	p := g.getPlayer(a.controller)
+
+	// remove card from players hand
 	p.hand[a.card] -= 1
 	if p.hand[a.card] == 0 {
 		delete(p.hand, a.card)
 	}
+
+	c := cards[a.card]
+	p.payMana(c.manacost)
+
+	// TODO: add to stack and resolve from stack
+
+}
+
+func (g *game) resolve(a action) {
+	if a.card == pass {
+		g.nextStep()
+		return
+	}
+
+	c := cards[a.card]
+	p := g.getPlayer(a.controller)
+
+	p.resolve(c)
+
+	// card specific effects
 	for _, effect := range a.effects {
 		effect.apply(g)
 	}

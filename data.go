@@ -6,44 +6,26 @@ import (
 	"github.com/MagicTheGathering/mtg-sdk-go"
 )
 
+type unorderedCards map[string]int // cardName : amount
+type orderedCards []string         // cardName
+
 var (
 	mountain = card{
-		name: "Mountain",
+		name:     "Mountain",
+		cardType: land{},
 		prereqs: []prerequisiteFunc{
 			func(p *player) bool { return !p.landPlayed },
-		},
-		effects: []effect{
-			selfEffect{
-			effect: func(p *player) {
-				// Maybe move all of this to 'execute play land action' ?
-				p.landPlayed = true
-				// TODO: land enters the battlefield
-				p.manaTotal += 1
-				p.manaAvailable += 1
-				},
-			},
 		},
 	}
 
 	lavaSpike = card{
 		name:     "Lava Spike",
 		manacost: manacost{r: 1},
-		prereqs: []prerequisiteFunc{
-			func(p *player) bool {
-				// TODO: target available (lets ignore hexproof players for now)
-				// --> this is handled by possibleTargets returning 0 actions
-				return p.manaAvailable >= 1
-			},
-		},
+		cardType: sorcery{},
 		effects: []effect{
-			selfEffect{
-			effect: func(p *player) {
-				p.manaAvailable -= 1
-				},
-			},
 			playerEffect{
-				effect:func(p *player) {
-				p.lifeTotal -= 3
+				effect: func(p *player) {
+					p.lifeTotal -= 3
 				},
 			},
 		},
@@ -52,21 +34,10 @@ var (
 	falkenrathReaver = card{
 		name:     "Falkenrath Reaver",
 		manacost: manacost{c: 1, r: 1},
-		prereqs: []prerequisiteFunc{
-			func(p *player) bool {
-				return p.manaAvailable >= 2
-			},
+		cardType: creature{
+			power:     2,
+			toughness: 2,
 		},
-		effects: []effect{
-			selfEffect{
-			effect: func(p *player) {
-				p.manaAvailable -= 2
-			},
-			// TODO: creature enters the battlefield
-			},
-		},
-		//power:     2,
-		//toughness: 2,
 	}
 
 	cards = map[string]card{
@@ -74,7 +45,7 @@ var (
 		lavaSpike.name: lavaSpike,
 	}
 
-	deckList = map[string]int{
+	deckList = unorderedCards{
 		mountain.name:  10,
 		lavaSpike.name: 20,
 	}
@@ -83,27 +54,27 @@ var (
 type card struct {
 	name     string
 	manacost manacost
+	cardType cardType
 	prereqs  []prerequisiteFunc
 	effects  []effect
 }
 
-// TODO: generate manacost prereq funcs using closures?
 type manacost struct {
 	c, w, u, b, r, g int
 }
 
-// TODO: on effect -> go on stack (except lands)
-// onResolve -> type specific (go to battlefield/graveyard)
-// and card specific (resolve sorcery/instant effect)
+func (m manacost) converted() int {
+	return m.c + m.w + m.u + m.b + m.r + m.g
+}
 
 // For permanent targets this might get hairy if they change
 // but players never change so this is simple
 type effect interface {
 	possibleTargets(controllingPlayer int, game *game) []effect
-	apply(*game)  
+	apply(*game)
 }
 
-type selfEffect struct{
+type selfEffect struct {
 	target int
 	effect func(*player)
 }
@@ -124,8 +95,8 @@ func (e selfEffect) apply(game *game) {
 
 type playerEffect struct {
 	controller int
-	target int
-	effect func(*player)
+	target     int
+	effect     func(*player)
 }
 
 func (e playerEffect) possibleTargets(controllingPlayer int, game *game) []effect {
@@ -147,33 +118,52 @@ func (e playerEffect) apply(game *game) {
 
 type prerequisiteFunc func(*player) bool
 
-// TODO: tap is for tokens, P/T on creature is about type!
-type Permanent interface {
-	tap() (success bool)
+type cardType interface {
+	// sorcery/instant goes to graveyard from stack
+	// permanents enter the battlefield (unless countered ofc)
+	// TODO: on effect -> go on stack (except lands)
+	// onResolve -> type specific (go to battlefield/graveyard)
+	// and card specific (resolve sorcery/instant effect, see game.resolve)
+	resolve(*player)
 }
 
-type permanent struct {
-	isTapped bool
+type sorcery struct{}
+
+func (s sorcery) resolve(p *player) {}
+
+// TODO: Im not happy with this interface
+type permanent interface {
+	enterTheBattlefield(*player)
 }
 
-func (p *permanent) tap() (success bool) {
-	if p.isTapped {
-		return false
-	}
-	p.isTapped = true
-	return true
+type land struct{}
+
+func (l land) resolve(p *player) {
+	l.enterTheBattlefield(p)
 }
 
-type land struct {
-	permanent
+func (l land) enterTheBattlefield(p *player) {
+	p.landPlayed = true
+	p.manaTotal += 1
+	p.manaAvailable += 1
+	// TODO: add to players battlefield
 }
+
 type creature struct {
-	permanent
 	power     int
 	toughness int
 }
 
-// TODO
+func (c creature) resolve(p *player) {
+	c.enterTheBattlefield(p)
+}
+
+func (c creature) enterTheBattlefield(p *player) {
+	// TODO: add to players battlefield
+}
+
+// TODO: generate card data from online database
+// build once card structure has stabilised a bit more
 func getCard(name string) card {
 	cards, err := mtg.NewQuery().Where(mtg.CardName, name).All()
 	if err != nil {

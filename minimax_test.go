@@ -36,7 +36,7 @@ func TestGetPlayerAction(t *testing.T) {
 				activePlayer:   1,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: pass, playerSelf: 0},
+			want: action{card: pass, controller:0},
 		},
 		{
 			g: &game{
@@ -61,7 +61,7 @@ func TestGetPlayerAction(t *testing.T) {
 				activePlayer:   0,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: lavaSpike.name, playerSelf: 0, playerTarget: 1},
+			want: action{card: lavaSpike.name, controller: 0},
 		},
 	} {
 		oldMax := maxDepth
@@ -71,6 +71,7 @@ func TestGetPlayerAction(t *testing.T) {
 		}()
 		tt.g.numPlayers = 2
 		got := tt.g.getPlayerAction()
+		got.effects = nil
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -95,7 +96,7 @@ func TestGetActionsSelf(t *testing.T) {
 				pointOfView: 0,
 			},
 			want: []action{
-				{card: pass, playerSelf: 0},
+				passAction,
 			},
 		},
 		{
@@ -113,15 +114,14 @@ func TestGetActionsSelf(t *testing.T) {
 						},
 						1: &player{name: "opp"},
 					},
-
 					activePlayer: 0,
 					currentStep:  precombatMainPhase,
 				},
 				pointOfView: 0,
 			},
 			want: []action{
-				{card: mountain.name, playerSelf: 0},
-				{card: pass, playerSelf: 0},
+				{card: mountain.name, controller: 0},
+				passAction,
 			},
 		},
 		{
@@ -146,13 +146,20 @@ func TestGetActionsSelf(t *testing.T) {
 				pointOfView: 0,
 			},
 			want: []action{
-				{card: lavaSpike.name, playerSelf: 0, playerTarget: 1},
-				{card: mountain.name, playerSelf: 0},
-				{card: pass, playerSelf: 0},
+				// targetting self, targetting opp
+				{card: lavaSpike.name, controller: 0}, 
+				{card: lavaSpike.name, controller: 0},
+				{card: mountain.name, controller: 0},
+				passAction,
 			},
 		},
 	} {
+		tt.node.game.numPlayers = 2
 		got := tt.node.getActionsSelf()
+		for i, a := range got {
+			a.effects = nil
+			got[i] = a
+		}
 		sort.Slice(got, func(i, j int) bool {
 			return got[i].card < got[j].card
 		})
@@ -179,9 +186,7 @@ func TestGetActionsOpponent(t *testing.T) {
 				},
 				pointOfView: 0,
 			},
-			want: []action{
-				{card: pass, playerSelf: 1},
-			},
+			want: []action{passAction},
 		},
 		{
 			node: node{
@@ -208,8 +213,8 @@ func TestGetActionsOpponent(t *testing.T) {
 				pointOfView: 0,
 			},
 			want: []action{
-				{card: mountain.name, playerSelf: 1},
-				{card: pass, playerSelf: 1},
+				{card: mountain.name, controller: 1},
+				passAction,
 			},
 		},
 		{
@@ -237,9 +242,11 @@ func TestGetActionsOpponent(t *testing.T) {
 				pointOfView: 0,
 			},
 			want: []action{
-				{card: lavaSpike.name, playerSelf: 1, playerTarget: 0},
-				{card: mountain.name, playerSelf: 1},
-				{card: pass, playerSelf: 1},
+				// targetting self, targetting opp
+				{card: lavaSpike.name, controller: 1},
+				{card: lavaSpike.name, controller: 1},
+				{card: mountain.name, controller: 1},
+				passAction,
 			},
 		},
 		{
@@ -263,12 +270,15 @@ func TestGetActionsOpponent(t *testing.T) {
 				},
 				pointOfView: 0,
 			},
-			want: []action{
-				{card: pass, playerSelf: 1},
-			},
+			want: []action{passAction},
 		},
 	} {
+		tt.node.game.numPlayers = 2
 		got := tt.node.getActionsOpponent()
+		for i, a := range got {
+			a.effects = nil
+			got[i] = a
+		}
 		sort.Slice(got, func(i, j int) bool {
 			return got[i].card < got[j].card
 		})

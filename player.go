@@ -7,13 +7,13 @@ import (
 
 type player struct {
 	name     string
-	deckList map[string]int
+	deckList unorderedCards
 
 	lifeTotal   int
-	hand        map[string]int // cardName : amount in hand
-	library     []string
-	battlefield []Permanent
-	graveyard   []string
+	hand        unorderedCards
+	library     orderedCards
+	battlefield battlefield
+	graveyard   orderedCards
 
 	landPlayed bool
 	decked     bool
@@ -22,11 +22,17 @@ type player struct {
 	manaAvailable int
 }
 
+type battlefield struct {
+	lands     []land
+	creatures []creature
+	other     []permanent
+}
+
 // TODO: battlefield?
 func (p *player) copy() *player {
 	newP := &player{}
 	*newP = *p
-	newP.hand = map[string]int{}
+	newP.hand = unorderedCards{}
 	for k, v := range p.hand {
 		newP.hand[k] = v
 	}
@@ -49,18 +55,48 @@ func (p *player) draw() {
 	p.library = p.library[1:]
 }
 
+func (p *player) hasMana(m manacost) bool {
+	return p.manaAvailable >= m.converted()
+}
+
+func (p *player) payMana(m manacost) {
+	p.manaAvailable -= m.converted()
+}
+
+// this means we only check prereqs against what we know
+// may have to change that to a probability prereq is met
+func (p *player) canPlayCard(card card) bool {
+	// can player pay for the card?
+	if !p.hasMana(card.manacost) {
+		return false
+	}
+	// other prerequisites such as paying life
+	// NOTE: prereq is target available?
+	// --> this is handled by possibleTargets returning 0 actions
+	for _, prereq := range card.prereqs {
+		if !prereq(p) {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *player) resolve(c card) {
+	c.cardType.resolve(p)
+}
+
 func (p *player) String() string {
 	return fmt.Sprintf("life: %d, mana: %d/%d", p.lifeTotal, p.manaAvailable, p.manaTotal)
 }
 
-func newPlayer(name string, deckList map[string]int) *player {
-	var list []string
+func newPlayer(name string, deckList unorderedCards) *player {
+	var list orderedCards
 	for k, v := range deckList {
 		for i := 0; i < v; i++ {
 			list = append(list, k)
 		}
 	}
-	shuffled := make([]string, len(list))
+	shuffled := make(orderedCards, len(list))
 	for i, v := range rand.Perm(len(list)) {
 		shuffled[v] = list[i]
 	}
@@ -68,7 +104,7 @@ func newPlayer(name string, deckList map[string]int) *player {
 		name:      name,
 		lifeTotal: 20,
 		library:   shuffled,
-		hand:      map[string]int{},
+		hand:      unorderedCards{},
 		deckList:  deckList,
 	}
 }
