@@ -144,6 +144,29 @@ func (g *game) playUntilPriority() {
 	return
 }
 
+// this means we only check prereqs against what we know
+// may have to change that to a probability prereq is met
+func (g *game) canPlayCard(p *player, card card) bool {
+	// prerequisites given by card type
+	if !card.cardType.prereq(g, p) {
+		return false
+	}
+
+	// can player pay for the card?
+	if !p.hasMana(card.manacost) {
+		return false
+	}
+	// other prerequisites such as paying life
+	// NOTE: prereq is target available?
+	// --> this is handled by possibleTargets returning 0 actions
+	for _, prereq := range card.prereqs {
+		if !prereq(p) {
+			return false
+		}
+	}
+	return true
+}
+
 func (g *game) nextStep() {
 	g.currentStep = (g.currentStep + 1) % numSteps
 }
@@ -239,4 +262,8 @@ func (g *game) getPlayerAction() action {
 		return passAction
 	}
 	return a
+}
+
+func (g *game) isMainPhase() bool {
+	return g.currentStep == precombatMainPhase || g.currentStep == postcombatMainPhase
 }

@@ -13,9 +13,6 @@ var (
 	mountain = card{
 		name:     "Mountain",
 		cardType: land{},
-		prereqs: []prerequisiteFunc{
-			func(p *player) bool { return !p.landPlayed },
-		},
 	}
 
 	lavaSpike = card{
@@ -119,6 +116,7 @@ func (e playerEffect) apply(game *game) {
 type prerequisiteFunc func(*player) bool
 
 type cardType interface {
+	prereq(*game, *player) bool
 	// sorcery/instant goes to graveyard from stack
 	// permanents enter the battlefield (unless countered ofc)
 	// TODO: on effect -> go on stack (except lands)
@@ -129,20 +127,19 @@ type cardType interface {
 
 type sorcery struct{}
 
-func (s sorcery) resolve(p *player) {}
-
-// TODO: Im not happy with this interface
-type permanent interface {
-	enterTheBattlefield(*player)
+func (s sorcery) prereq(g *game, p *player) bool {
+	return g.isMainPhase()
 }
+
+func (s sorcery) resolve(p *player) {}
 
 type land struct{}
 
-func (l land) resolve(p *player) {
-	l.enterTheBattlefield(p)
+func (l land) prereq(g *game, p *player) bool {
+	return g.isMainPhase() && !p.landPlayed
 }
 
-func (l land) enterTheBattlefield(p *player) {
+func (l land) resolve(p *player) {
 	p.landPlayed = true
 	p.manaTotal += 1
 	p.manaAvailable += 1
@@ -154,11 +151,11 @@ type creature struct {
 	toughness int
 }
 
-func (c creature) resolve(p *player) {
-	c.enterTheBattlefield(p)
+func (c creature) prereq(g *game, p *player) bool {
+	return g.isMainPhase()
 }
 
-func (c creature) enterTheBattlefield(p *player) {
+func (c creature) resolve(p *player) {
 	// TODO: add to players battlefield
 }
 

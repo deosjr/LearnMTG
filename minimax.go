@@ -54,7 +54,7 @@ func (n node) getActionsSelf() []action {
 	p := n.game.getPlayer(n.pointOfView)
 	for k, _ := range p.hand {
 		card := cards[k]
-		if !p.canPlayCard(card) {
+		if !n.game.canPlayCard(p, card) {
 			continue
 		}
 		actions = append(actions, getCardActions(card, n.pointOfView, n.game)...)
@@ -75,7 +75,7 @@ func (n node) getActionsOpponent() []action {
 	// extra prereq: they have at least 1 card in hand
 	for k, _ := range opp.deckList {
 		card := cards[k]
-		if !opp.canPlayCard(card) {
+		if !n.game.canPlayCard(opp, card) {
 			continue
 		}
 		actions = append(actions, getCardActions(card, oppIndex, n.game)...)

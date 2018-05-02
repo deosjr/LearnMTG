@@ -25,7 +25,7 @@ type player struct {
 type battlefield struct {
 	lands     []land
 	creatures []creature
-	other     []permanent
+	other     []cardType // TODO: permanents
 }
 
 // TODO: battlefield?
@@ -61,24 +61,6 @@ func (p *player) hasMana(m manacost) bool {
 
 func (p *player) payMana(m manacost) {
 	p.manaAvailable -= m.converted()
-}
-
-// this means we only check prereqs against what we know
-// may have to change that to a probability prereq is met
-func (p *player) canPlayCard(card card) bool {
-	// can player pay for the card?
-	if !p.hasMana(card.manacost) {
-		return false
-	}
-	// other prerequisites such as paying life
-	// NOTE: prereq is target available?
-	// --> this is handled by possibleTargets returning 0 actions
-	for _, prereq := range card.prereqs {
-		if !prereq(p) {
-			return false
-		}
-	}
-	return true
 }
 
 func (p *player) resolve(c card) {
