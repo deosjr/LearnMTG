@@ -35,6 +35,7 @@ const (
 
 type game struct {
 	players        []*player
+	stack          []action
 	currentStep    step
 	turn           int
 	activePlayer   int
@@ -68,12 +69,14 @@ func (g *game) loop() {
 			break
 		}
 		action := g.getPlayerAction()
-		g.play(action)
-		g.resolve(action)
-		if action.card != pass {
-			fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
-			g.debug()
+		if action.card == pass {
+			g.nextStep()
+			continue
 		}
+		g.play(action)
+		g.resolve()
+		fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
+		g.debug()
 	}
 }
 
@@ -180,6 +183,7 @@ func (g *game) checkStateBasedActions() (gameEnds bool) {
 	return false
 }
 
+// TODO: stack
 func (g *game) copy() *game {
 	newG := &game{}
 	*newG = *g
@@ -193,22 +197,10 @@ func (g *game) copy() *game {
 func (g *game) debug() {
 	activePlayer := g.getActivePlayer()
 	opp := g.getOpponent(g.activePlayer)
-	fmt.Printf("%s turn %d: %s VS %s \n", activePlayer.name, g.turn, activePlayer.String(), opp.String())
-}
-
-var pass = "PASS"
-var passAction = action{card: pass}
-
-type action struct {
-	card       string
-	controller int
-	effects    []effect
+	fmt.Printf("%s turn %d step %d: %s VS %s \n", activePlayer.name, g.turn, g.currentStep, activePlayer.String(), opp.String())
 }
 
 func (g *game) play(a action) {
-	if a.card == pass {
-		return
-	}
 	p := g.getPlayer(a.controller)
 
 	// remove card from players hand
@@ -220,20 +212,20 @@ func (g *game) play(a action) {
 	c := cards[a.card]
 	p.payMana(c.manacost)
 
-	// TODO: add to stack and resolve from stack
-
+	g.stack = append(g.stack, a)
 }
 
-func (g *game) resolve(a action) {
-	if a.card == pass {
-		g.nextStep()
-		return
+// TODO: lands use the stack atm
+func (g *game) resolve() {
+	if len(g.stack) == 0 {
+		panic("no stack to resolve")
 	}
+	a := g.stack[len(g.stack)-1]
+	g.stack = g.stack[:len(g.stack)-1]
 
 	c := cards[a.card]
 	p := g.getPlayer(a.controller)
-
-	p.resolve(c)
+	c.resolve(p)
 
 	// card specific effects
 	for _, effect := range a.effects {

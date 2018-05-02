@@ -23,9 +23,14 @@ type player struct {
 }
 
 type battlefield struct {
-	lands     []land
-	creatures []creature
-	other     []cardType // TODO: permanents
+	lands     []cardInstance
+	creatures []cardInstance
+	other     []cardInstance
+}
+
+// the token of type card, i.e. a specific Mountain
+type cardInstance struct {
+	card card
 }
 
 // TODO: battlefield?
@@ -61,10 +66,6 @@ func (p *player) hasMana(m manacost) bool {
 
 func (p *player) payMana(m manacost) {
 	p.manaAvailable -= m.converted()
-}
-
-func (p *player) resolve(c card) {
-	c.cardType.resolve(p)
 }
 
 func (p *player) String() string {

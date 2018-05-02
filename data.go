@@ -56,6 +56,25 @@ type card struct {
 	effects  []effect
 }
 
+// sorcery/instant goes to graveyard from stack
+// permanents enter the battlefield (unless countered ofc)
+// NOTE: on effect -> go on stack (except lands)
+// onResolve -> type specific (go to battlefield/graveyard)
+// and card specific (resolve sorcery/instant effect, see game.resolve)
+func (c card) resolve(p *player) {
+	switch c.cardType.(type) {
+	case land:
+		p.landPlayed = true
+		p.manaTotal += 1
+		p.manaAvailable += 1
+		p.battlefield.lands = append(p.battlefield.lands, cardInstance{card: c})
+	case creature:
+		p.battlefield.creatures = append(p.battlefield.creatures, cardInstance{card: c})
+	case sorcery:
+		p.graveyard = append(p.graveyard, c.name)
+	}
+}
+
 type manacost struct {
 	c, w, u, b, r, g int
 }
@@ -117,12 +136,6 @@ type prerequisiteFunc func(*player) bool
 
 type cardType interface {
 	prereq(*game, *player) bool
-	// sorcery/instant goes to graveyard from stack
-	// permanents enter the battlefield (unless countered ofc)
-	// TODO: on effect -> go on stack (except lands)
-	// onResolve -> type specific (go to battlefield/graveyard)
-	// and card specific (resolve sorcery/instant effect, see game.resolve)
-	resolve(*player)
 }
 
 type sorcery struct{}
@@ -131,19 +144,10 @@ func (s sorcery) prereq(g *game, p *player) bool {
 	return g.isMainPhase()
 }
 
-func (s sorcery) resolve(p *player) {}
-
 type land struct{}
 
 func (l land) prereq(g *game, p *player) bool {
 	return g.isMainPhase() && !p.landPlayed
-}
-
-func (l land) resolve(p *player) {
-	p.landPlayed = true
-	p.manaTotal += 1
-	p.manaAvailable += 1
-	// TODO: add to players battlefield
 }
 
 type creature struct {
@@ -153,10 +157,6 @@ type creature struct {
 
 func (c creature) prereq(g *game, p *player) bool {
 	return g.isMainPhase()
-}
-
-func (c creature) resolve(p *player) {
-	// TODO: add to players battlefield
 }
 
 // TODO: generate card data from online database

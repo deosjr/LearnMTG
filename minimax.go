@@ -36,14 +36,27 @@ func minimax(node node, depth int, maximizingPlayer bool) float64 {
 
 func (n node) getChild(a action) node {
 	g := n.game.copy()
-	g.play(a)
-	g.resolve(a)
-
+	if a.card == pass {
+		g.nextStep()
+	} else {
+		g.play(a)
+		g.resolve()
+	}
 	g.playUntilPriority()
 	return node{
 		game:        g,
 		pointOfView: n.pointOfView,
 	}
+}
+
+var pass = "PASS"
+var passAction = action{card: pass}
+
+// TODO: split out in play, attack and defend actions
+type action struct {
+	card       string
+	controller int
+	effects    []effect
 }
 
 func (n node) getActionsSelf() []action {
