@@ -36,7 +36,7 @@ func TestGetPlayerAction(t *testing.T) {
 				activePlayer:   1,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: pass, controller:0},
+			want: action{card: pass, controller: 0},
 		},
 		{
 			g: &game{
@@ -96,7 +96,7 @@ func TestGetActionsSelf(t *testing.T) {
 				pointOfView: 0,
 			},
 			want: []action{
-				passAction,
+				action{card: pass},
 			},
 		},
 		{
@@ -121,7 +121,7 @@ func TestGetActionsSelf(t *testing.T) {
 			},
 			want: []action{
 				{card: mountain.name, controller: 0},
-				passAction,
+				action{card: pass},
 			},
 		},
 		{
@@ -147,10 +147,10 @@ func TestGetActionsSelf(t *testing.T) {
 			},
 			want: []action{
 				// targetting self, targetting opp
-				{card: lavaSpike.name, controller: 0}, 
+				{card: lavaSpike.name, controller: 0},
 				{card: lavaSpike.name, controller: 0},
 				{card: mountain.name, controller: 0},
-				passAction,
+				action{card: pass},
 			},
 		},
 	} {
@@ -186,7 +186,7 @@ func TestGetActionsOpponent(t *testing.T) {
 				},
 				pointOfView: 0,
 			},
-			want: []action{passAction},
+			want: []action{action{card: pass, controller: 1}},
 		},
 		{
 			node: node{
@@ -214,7 +214,7 @@ func TestGetActionsOpponent(t *testing.T) {
 			},
 			want: []action{
 				{card: mountain.name, controller: 1},
-				passAction,
+				action{card: pass, controller: 1},
 			},
 		},
 		{
@@ -246,7 +246,7 @@ func TestGetActionsOpponent(t *testing.T) {
 				{card: lavaSpike.name, controller: 1},
 				{card: lavaSpike.name, controller: 1},
 				{card: mountain.name, controller: 1},
-				passAction,
+				action{card: pass, controller: 1},
 			},
 		},
 		{
@@ -270,7 +270,7 @@ func TestGetActionsOpponent(t *testing.T) {
 				},
 				pointOfView: 0,
 			},
-			want: []action{passAction},
+			want: []action{action{card: pass, controller: 1}},
 		},
 	} {
 		tt.node.game.numPlayers = 2

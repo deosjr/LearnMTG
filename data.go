@@ -83,71 +83,26 @@ func (m manacost) converted() int {
 	return m.c + m.w + m.u + m.b + m.r + m.g
 }
 
-// For permanent targets this might get hairy if they change
-// but players never change so this is simple
-type effect interface {
-	possibleTargets(controllingPlayer int, game *game) []effect
-	apply(*game)
-}
-
-type selfEffect struct {
-	target int
-	effect func(*player)
-}
-
-func (e selfEffect) possibleTargets(controllingPlayer int, game *game) []effect {
-	return []effect{
-		selfEffect{
-			target: controllingPlayer,
-			effect: e.effect,
-		},
-	}
-}
-
-func (e selfEffect) apply(game *game) {
-	p := game.getPlayer(e.target)
-	e.effect(p)
-}
-
-type playerEffect struct {
-	controller int
-	target     int
-	effect     func(*player)
-}
-
-func (e playerEffect) possibleTargets(controllingPlayer int, game *game) []effect {
-	effects := []effect{}
-	for i := 0; i < game.numPlayers; i++ {
-		pe := playerEffect{
-			target: i,
-			effect: e.effect,
-		}
-		effects = append(effects, pe)
-	}
-	return effects
-}
-
-func (e playerEffect) apply(game *game) {
-	p := game.getPlayer(e.target)
-	e.effect(p)
-}
-
 type prerequisiteFunc func(*player) bool
 
 type cardType interface {
-	prereq(*game, *player) bool
+	prereq(*game, int) bool
 }
 
 type sorcery struct{}
 
-func (s sorcery) prereq(g *game, p *player) bool {
-	return g.isMainPhase()
+func (s sorcery) prereq(g *game, pindex int) bool {
+	return sorcerySpeed(g, pindex)
 }
 
 type land struct{}
 
-func (l land) prereq(g *game, p *player) bool {
-	return g.isMainPhase() && !p.landPlayed
+func (l land) prereq(g *game, pindex int) bool {
+	if !sorcerySpeed(g, pindex) {
+		return false
+	}
+	p := g.getPlayer(pindex)
+	return !p.landPlayed
 }
 
 type creature struct {
@@ -155,8 +110,12 @@ type creature struct {
 	toughness int
 }
 
-func (c creature) prereq(g *game, p *player) bool {
-	return g.isMainPhase()
+func (c creature) prereq(g *game, pindex int) bool {
+	return sorcerySpeed(g, pindex)
+}
+
+func sorcerySpeed(g *game, pindex int) bool {
+	return g.isMainPhase() && len(g.stack) == 0 && g.activePlayer == pindex
 }
 
 // TODO: generate card data from online database

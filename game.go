@@ -42,15 +42,17 @@ type game struct {
 	priorityPlayer int
 	startingPlayer int
 	numPlayers     int
+	numPasses      int
 }
 
 func newGame(players ...*player) *game {
 	numPlayers := len(players)
 	startingPlayer := rand.Intn(numPlayers)
+	fmt.Printf("Starting player: %s\n", players[startingPlayer].name)
 	for _, p := range players {
 		p.drawN(7)
 	}
-	return &game{
+	g := &game{
 		players:        players,
 		currentStep:    precombatMainPhase,
 		turn:           1,
@@ -59,24 +61,61 @@ func newGame(players ...*player) *game {
 		startingPlayer: startingPlayer,
 		numPlayers:     numPlayers,
 	}
+	g.advanceUntilPriority()
+	return g
 }
 
 func (g *game) loop() {
 	for {
-		g.playUntilPriority()
-		if gameEnds := g.checkStateBasedActions(); gameEnds {
-			fmt.Println("End of game")
-			break
-		}
 		action := g.getPlayerAction()
+		g.resolveAction(action)
 		if action.card == pass {
-			g.nextStep()
-			continue
+			fmt.Printf("-> %s passes\n", g.getPlayer(action.controller).name)
+		} else {
+			fmt.Printf("-> %s played %s\n", g.getPlayer(action.controller).name, action.card)
 		}
-		g.play(action)
-		g.resolve()
-		fmt.Printf("-> %s played %s \n", g.getActivePlayer().name, action.card)
+		if gameEnds := g.checkStateBasedActions(); gameEnds {
+			g.debug()
+			fmt.Println("End of game")
+			return
+		}
 		g.debug()
+	}
+}
+
+func (g *game) resolveAction(action action) {
+	if action.card == pass {
+		g.numPasses++
+		// 116.3d If a player has priority and chooses not to take any actions,
+		// that player passes. [...] Then the next player in turn order receives priority.
+		g.advancePriority()
+	} else {
+		// 116.3c If a player has priority when they cast a spell,
+		// activate an ability, or take a special action, that player receives priority afterward.
+		g.numPasses = 0
+		g.play(action)
+		// TODO (currently a hack): special actions (such as playing land)
+		// do not always pass priority to the other player
+		if action.card == "Mountain" {
+			g.resolve()
+		}
+	}
+
+	// 116.4. If all players pass in succession
+	// (that is, if all players pass without taking any actions in between passing),
+	// the spell or ability on top of the stack resolves or, if the stack is empty,
+	// the phase or step ends.
+	if g.numPasses == g.numPlayers {
+		g.numPasses = 0
+		if len(g.stack) != 0 {
+			g.resolve()
+		} else {
+			g.nextStep()
+			g.advanceUntilPriority()
+		}
+		// 116.3a The active player receives priority at the beginning of most steps and phases [...]
+		// 116.3b The active player receives priority after a spell or ability (other than a mana ability) resolves.
+		g.priorityPlayer = g.activePlayer
 	}
 }
 
@@ -100,16 +139,20 @@ func (g *game) getPriorityPlayer() *player {
 	return g.getPlayer(g.priorityPlayer)
 }
 
-func (g *game) playUntilPriority() {
-	activePlayer := g.getActivePlayer()
+func (g *game) advancePriority() {
+	g.priorityPlayer = (g.priorityPlayer + 1) % g.numPlayers
+}
+
+func (g *game) advanceUntilPriority() {
 	for {
 		switch g.currentStep {
 		case untapStep:
+			activePlayer := g.getActivePlayer()
 			activePlayer.manaAvailable = activePlayer.manaTotal
 		case upkeepStep:
 			break //skip
 		case drawStep:
-			activePlayer.draw()
+			g.getActivePlayer().draw()
 		case precombatMainPhase:
 			return
 		case beginningOfCombatStep:
@@ -133,14 +176,7 @@ func (g *game) playUntilPriority() {
 		}
 		// just passed past the cleanup into next turn
 		if g.currentStep == cleanupStep {
-			activePlayer.landPlayed = false
-			// NOTE: priority only switches on turn (i.e. no instants)
-			g.activePlayer = (g.activePlayer + 1) % g.numPlayers
-			g.priorityPlayer = (g.priorityPlayer + 1) % g.numPlayers
-			if g.activePlayer == g.startingPlayer {
-				g.turn++
-			}
-			activePlayer = g.getActivePlayer()
+			g.nextTurn()
 		}
 		g.nextStep()
 	}
@@ -149,12 +185,13 @@ func (g *game) playUntilPriority() {
 
 // this means we only check prereqs against what we know
 // may have to change that to a probability prereq is met
-func (g *game) canPlayCard(p *player, card card) bool {
+func (g *game) canPlayCard(pindex int, card card) bool {
 	// prerequisites given by card type
-	if !card.cardType.prereq(g, p) {
+	if !card.cardType.prereq(g, pindex) {
 		return false
 	}
 
+	p := g.getPlayer(pindex)
 	// can player pay for the card?
 	if !p.hasMana(card.manacost) {
 		return false
@@ -172,6 +209,16 @@ func (g *game) canPlayCard(p *player, card card) bool {
 
 func (g *game) nextStep() {
 	g.currentStep = (g.currentStep + 1) % numSteps
+}
+
+func (g *game) nextTurn() {
+	g.getActivePlayer().landPlayed = false
+	g.activePlayer = (g.activePlayer + 1) % g.numPlayers
+	// TODO: should check statebased actions here too!
+	g.advancePriority()
+	if g.activePlayer == g.startingPlayer {
+		g.turn++
+	}
 }
 
 func (g *game) checkStateBasedActions() (gameEnds bool) {
@@ -215,7 +262,6 @@ func (g *game) play(a action) {
 	g.stack = append(g.stack, a)
 }
 
-// TODO: lands use the stack atm
 func (g *game) resolve() {
 	if len(g.stack) == 0 {
 		panic("no stack to resolve")
@@ -236,22 +282,16 @@ func (g *game) resolve() {
 var maxDepth = 10
 
 func (g *game) getPlayerAction() action {
-	index := g.priorityPlayer
-	root := node{game: g, pointOfView: index}
-	childActions := root.getActionsSelf()
+	root := node{game: g, pointOfView: g.priorityPlayer}
 	var a action
 	bestValue := -math.MaxFloat64
-	for _, childAction := range childActions {
+	for _, childAction := range root.getActionsSelf() {
 		child := root.getChild(childAction)
-		v := minimax(child, maxDepth, false)
+		v := minimax(child, maxDepth)
 		if v > bestValue {
 			bestValue = v
 			a = childAction
 		}
-	}
-	if a.card == "" {
-		// TODO: all options lead to certain death
-		return passAction
 	}
 	return a
 }
