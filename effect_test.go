@@ -28,7 +28,7 @@ func TestPossibleTargets(t *testing.T) {
 			effect:     playerEffect{},
 			controller: 1,
 			game:       &game{numPlayers: 2},
-			want:       []effect{playerEffect{target: 0}, playerEffect{target: 1}},
+			want:       []effect{playerEffect{controller: 1, target: 0}, playerEffect{controller: 1, target: 1}},
 		},
 	} {
 		got := tt.effect.possibleTargets(tt.controller, tt.game)
