@@ -24,7 +24,7 @@ func (e selfEffect) possibleTargets(controllingPlayer int, game *game) []effect 
 }
 
 func (e selfEffect) apply(game *game) {
-	p := game.getPlayer(e.target)
+	p := game.getPlayer(e.controller)
 	e.effect(p)
 }
 

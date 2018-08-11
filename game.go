@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 )
 
@@ -67,19 +66,23 @@ func newGame(players ...*player) *game {
 
 func (g *game) loop() {
 	for {
+		g.debug()
 		action := g.getPlayerAction()
 		g.resolveAction(action)
 		if action.card == pass {
 			fmt.Printf("-> %s passes\n", g.getPlayer(action.controller).name)
 		} else {
-			fmt.Printf("-> %s played %s\n", g.getPlayer(action.controller).name, action.card)
+			fmt.Printf("-> %s played %s", g.getPlayer(action.controller).name, action.card)
+			if len(action.effects) > 0 {
+				fmt.Printf(" targetting %s", g.getPlayer(action.effects[0].(playerEffect).target).name)
+			}
+			fmt.Println()
 		}
 		if gameEnds := g.checkStateBasedActions(); gameEnds {
 			g.debug()
 			fmt.Println("End of game")
 			return
 		}
-		g.debug()
 	}
 }
 
@@ -244,7 +247,9 @@ func (g *game) copy() *game {
 func (g *game) debug() {
 	activePlayer := g.getActivePlayer()
 	opp := g.getOpponent(g.activePlayer)
-	fmt.Printf("%s turn %d step %d: %s VS %s \n", activePlayer.name, g.turn, g.currentStep, activePlayer.String(), opp.String())
+	fmt.Println("----------------------------------------------------------------")
+	fmt.Printf("%s turn %d step %d: %s \n", activePlayer.name, g.turn, g.currentStep, activePlayer.String())
+	fmt.Printf("           VS %s: %s \n", opp.name, opp.String())
 }
 
 func (g *game) play(a action) {
@@ -279,23 +284,57 @@ func (g *game) resolve() {
 	}
 }
 
-var maxDepth = 10
-
-func (g *game) getPlayerAction() action {
-	root := node{game: g, pointOfView: g.priorityPlayer}
-	var a action
-	bestValue := -math.MaxFloat64
-	for _, childAction := range root.getActionsSelf() {
-		child := root.getChild(childAction)
-		v := minimax(child, maxDepth)
-		if v > bestValue {
-			bestValue = v
-			a = childAction
-		}
-	}
-	return a
-}
-
 func (g *game) isMainPhase() bool {
 	return g.currentStep == precombatMainPhase || g.currentStep == postcombatMainPhase
+}
+
+func (g *game) getPlayerAction() action {
+	return startMinimax(g)
+}
+
+func (g *game) getActions(index int) []action {
+	p := g.getPlayer(index)
+	actions := []action{action{card: pass, controller: index}}
+	for k, _ := range p.hand {
+		card := cards[k]
+		if !g.canPlayCard(index, card) {
+			continue
+		}
+		actions = append(actions, g.getCardActions(card, index)...)
+	}
+	return actions
+}
+
+func (g *game) getCardActions(card card, controller int) []action {
+	if card.effects == nil {
+		return []action{action{card: card.name, controller: controller}}
+	}
+	actions := []action{}
+	effects := [][]effect{}
+	for _, e := range card.effects {
+		effects = append(effects, e.possibleTargets(controller, g))
+	}
+	// Multi-target combinatorics (TODO: with constraints such as no same target!)
+	if len(effects) == 0 {
+		return actions
+	}
+	oldArr := [][]effect{}
+	for _, e := range effects[0] {
+		oldArr = append(oldArr, []effect{e})
+	}
+	newArr := [][]effect{}
+	for _, ea := range effects[1:] {
+		for _, e := range ea {
+			for _, oe := range oldArr {
+				newArr = append(newArr, append(oe, e))
+			}
+		}
+		oldArr = newArr
+		newArr = [][]effect{}
+	}
+	for _, e := range oldArr {
+		action := action{card: card.name, controller: controller, effects: e}
+		actions = append(actions, action)
+	}
+	return actions
 }

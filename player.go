@@ -69,7 +69,7 @@ func (p *player) payMana(m manacost) {
 }
 
 func (p *player) String() string {
-	return fmt.Sprintf("life: %d, mana: %d/%d", p.lifeTotal, p.manaAvailable, p.manaTotal)
+	return fmt.Sprintf("life: %d, mana: %d/%d, hand: %s", p.lifeTotal, p.manaAvailable, p.manaTotal, p.hand.String())
 }
 
 func newPlayer(name string, deckList unorderedCards) *player {

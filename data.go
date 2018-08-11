@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/MagicTheGathering/mtg-sdk-go"
 )
@@ -127,4 +128,16 @@ func getCard(name string) card {
 	}
 	fmt.Println(cards)
 	return card{name: cards[0].Name}
+}
+
+func (c unorderedCards) String() string {
+	var ss []string
+	for k, v := range c {
+		if v == 1 {
+			ss = append(ss, k)
+			continue
+		}
+		ss = append(ss, fmt.Sprintf("%s(%d)", k, v))
+	}
+	return strings.Join(ss, ",")
 }

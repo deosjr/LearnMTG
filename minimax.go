@@ -4,9 +4,26 @@ import (
 	"math"
 )
 
+var maxDepth = 10
+
 type node struct {
 	game        *game
 	pointOfView int
+}
+
+func startMinimax(g *game) action {
+	root := node{game: g, pointOfView: g.priorityPlayer}
+	var a action
+	bestValue := -math.MaxFloat64
+	for _, childAction := range root.getActionsSelf() {
+		child := root.getChild(childAction)
+		v := minimax(child, maxDepth)
+		if v > bestValue {
+			bestValue = v
+			a = childAction
+		}
+	}
+	return a
 }
 
 func minimax(node node, depth int) float64 {
@@ -49,7 +66,7 @@ func (n node) getChild(action action) node {
 
 var pass = "PASS"
 
-// TODO: split out in play, ability, special, attack and defend actions
+// TODO: split out in play, ability, special, attack and block actions
 type action struct {
 	card       string
 	controller int
@@ -57,71 +74,13 @@ type action struct {
 }
 
 func (n node) getActionsSelf() []action {
-	actions := []action{action{card: pass, controller: n.pointOfView}}
-	p := n.game.getPlayer(n.pointOfView)
-	for k, _ := range p.hand {
-		card := cards[k]
-		if !n.game.canPlayCard(n.pointOfView, card) {
-			continue
-		}
-		actions = append(actions, getCardActions(card, n.pointOfView, n.game)...)
-	}
-	return actions
+	return n.game.getActions(n.pointOfView)
 }
 
-// TODO: deal with incomplete information!
 func (n node) getActionsOpponent() []action {
 	// again, two player game assumption for now
 	oppIndex := (n.pointOfView + 1) % 2
-	opp := n.game.getPlayer(oppIndex)
-	actions := []action{action{card: pass, controller: oppIndex}}
-	// worst-case assumption: player always has all possible cards
-	// extra prereq: they have at least 1 card in hand
-	if len(opp.hand) == 0 {
-		return actions
-	}
-	for k, _ := range opp.deckList {
-		card := cards[k]
-		if !n.game.canPlayCard(oppIndex, card) {
-			continue
-		}
-		actions = append(actions, getCardActions(card, oppIndex, n.game)...)
-	}
-	return actions
-}
-
-func getCardActions(card card, controller int, game *game) []action {
-	if card.effects == nil {
-		return []action{action{card: card.name, controller: controller}}
-	}
-	actions := []action{}
-	effects := [][]effect{}
-	for _, e := range card.effects {
-		effects = append(effects, e.possibleTargets(controller, game))
-	}
-	// Multi-target combinatorics (TODO: with constraints such as no same target!)
-	if len(effects) == 0 {
-		return actions
-	}
-	oldArr := [][]effect{}
-	for _, e := range effects[0] {
-		oldArr = append(oldArr, []effect{e})
-	}
-	newArr := [][]effect{}
-	for _, ea := range effects[1:] {
-		for _, e := range ea {
-			for _, oe := range oldArr {
-				newArr = append(newArr, append(oe, e))
-			}
-		}
-		oldArr = newArr
-		newArr = [][]effect{}
-	}
-	for _, e := range oldArr {
-		action := action{card: card.name, controller: controller, effects: e}
-		actions = append(actions, action)
-	}
-	return actions
+	return n.game.getActions(oppIndex)
 }
 
 // use an arbitrarily large number because I
