@@ -37,6 +37,9 @@ type cardInstance struct {
 func (p *player) copy() *player {
 	newP := &player{}
 	*newP = *p
+	if len(p.hand) == 0 {
+		return newP
+	}
 	newP.hand = unorderedCards{}
 	for k, v := range p.hand {
 		newP.hand[k] = v
@@ -54,6 +57,9 @@ func (p *player) draw() {
 	if len(p.library) == 0 {
 		p.decked = true
 		return
+	}
+	if p.hand == nil {
+		p.hand = unorderedCards{}
 	}
 	card := p.library[0]
 	p.hand[card] += 1

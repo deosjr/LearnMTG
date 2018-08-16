@@ -8,39 +8,35 @@ type effect interface {
 }
 
 type selfEffect struct {
-	controller int
-	target     int
-	effect     func(*player)
+	target int
+	effect func(*player)
 }
 
 func (e selfEffect) possibleTargets(controllingPlayer int, game *game) []effect {
 	return []effect{
 		selfEffect{
-			controller: controllingPlayer,
-			target:     controllingPlayer,
-			effect:     e.effect,
+			target: controllingPlayer,
+			effect: e.effect,
 		},
 	}
 }
 
 func (e selfEffect) apply(game *game) {
-	p := game.getPlayer(e.controller)
+	p := game.getPlayer(e.target)
 	e.effect(p)
 }
 
 type playerEffect struct {
-	controller int
-	target     int
-	effect     func(*player)
+	target int
+	effect func(*player)
 }
 
-func (e playerEffect) possibleTargets(controllingPlayer int, game *game) []effect {
+func (e playerEffect) possibleTargets(_ int, game *game) []effect {
 	effects := []effect{}
 	for i := 0; i < game.numPlayers; i++ {
 		pe := playerEffect{
-			controller: controllingPlayer,
-			target:     i,
-			effect:     e.effect,
+			target: i,
+			effect: e.effect,
 		}
 		effects = append(effects, pe)
 	}

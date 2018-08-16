@@ -67,14 +67,28 @@ func newGame(players ...*player) *game {
 func (g *game) loop() {
 	for {
 		g.debug()
-		action := g.getPlayerAction()
-		g.resolveAction(action)
-		if action.card == pass {
-			fmt.Printf("-> %s passes\n", g.getPlayer(action.controller).name)
+		a := g.getPlayerAction()
+		var ac action
+		var stacklength int
+		if len(g.stack) != 0 {
+			stacklength = len(g.stack)
+			ac = g.stack[stacklength-1]
+		}
+		g.resolveAction(a)
+		if a.card == pass {
+			fmt.Printf("-> %s passes\n", g.getPlayer(a.controller).name)
+			if len(g.stack) < stacklength {
+				// ac resolved
+				for _, eff := range ac.effects {
+					e := eff.(playerEffect)
+					fmt.Printf("%s resolved by %s targeting %s \n", ac.card, g.getPlayer(ac.controller).name, g.getPlayer(e.target).name)
+				}
+			}
 		} else {
-			fmt.Printf("-> %s played %s", g.getPlayer(action.controller).name, action.card)
-			if len(action.effects) > 0 {
-				fmt.Printf(" targetting %s", g.getPlayer(action.effects[0].(playerEffect).target).name)
+			fmt.Printf("-> %s played %s", g.getPlayer(a.controller).name, a.card)
+			if len(a.effects) > 0 {
+				e := a.effects[0].(playerEffect)
+				fmt.Printf(" targeting %s", g.getPlayer(e.target).name)
 			}
 			fmt.Println()
 		}
@@ -233,13 +247,19 @@ func (g *game) checkStateBasedActions() (gameEnds bool) {
 	return false
 }
 
-// TODO: stack
 func (g *game) copy() *game {
 	newG := &game{}
 	*newG = *g
 	newG.players = make([]*player, len(g.players))
 	for i, p := range g.players {
 		newG.players[i] = p.copy()
+	}
+	if len(g.stack) == 0 {
+		return newG
+	}
+	newG.stack = make([]action, len(g.stack))
+	for i, a := range g.stack {
+		newG.stack[i] = a
 	}
 	return newG
 }

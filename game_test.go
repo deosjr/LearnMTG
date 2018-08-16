@@ -13,11 +13,13 @@ const (
 
 func TestGetPlayerAction(t *testing.T) {
 	for i, tt := range []struct {
-		g    *game
+		name string
+		game *game
 		want action
 	}{
 		{
-			g: &game{
+			name: "no options means pass",
+			game: &game{
 				players: []*player{
 					SELF: &player{},
 					OPP:  &player{},
@@ -29,7 +31,8 @@ func TestGetPlayerAction(t *testing.T) {
 			want: action{card: pass, controller: SELF},
 		},
 		{
-			g: &game{
+			name: "lava spike for the win",
+			game: &game{
 				players: []*player{
 					SELF: &player{
 						hand: map[string]int{
@@ -41,6 +44,7 @@ func TestGetPlayerAction(t *testing.T) {
 					},
 					OPP: &player{
 						lifeTotal: 3,
+						library:   []string{mountain.name},
 					},
 				},
 				priorityPlayer: SELF,
@@ -50,10 +54,12 @@ func TestGetPlayerAction(t *testing.T) {
 			want: action{card: lavaSpike.name, controller: SELF},
 		},
 		{
-			g: &game{
+			name: "opp lava spike for the win",
+			game: &game{
 				players: []*player{
 					SELF: &player{
 						lifeTotal: 3,
+						library:   []string{mountain.name},
 					},
 					OPP: &player{
 						hand: map[string]int{
@@ -76,23 +82,25 @@ func TestGetPlayerAction(t *testing.T) {
 		defer func() {
 			maxDepth = oldMax
 		}()
-		tt.g.numPlayers = 2
-		got := tt.g.getPlayerAction()
+		tt.game.numPlayers = 2
+		got := tt.game.getPlayerAction()
 		got.effects = nil
 		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("%d) got %v want %v", i, got, tt.want)
+			t.Errorf("%d: %s) got %v want %v", i, tt.name, got, tt.want)
 		}
 	}
 }
 
 func TestGetActions(t *testing.T) {
 	for i, tt := range []struct {
+		name        string
 		game        *game
 		pointOfView int
 		want        []action
 	}{
 		// SELF MOVES
 		{
+			name: "no options means pass",
 			game: &game{
 				players: []*player{
 					SELF: &player{},
@@ -108,6 +116,7 @@ func TestGetActions(t *testing.T) {
 			},
 		},
 		{
+			name: "no mana no lava spike",
 			game: &game{
 				players: []*player{
 					SELF: &player{
@@ -131,6 +140,7 @@ func TestGetActions(t *testing.T) {
 			},
 		},
 		{
+			name: "all the options",
 			game: &game{
 				players: []*player{
 					SELF: &player{
@@ -141,7 +151,9 @@ func TestGetActions(t *testing.T) {
 						manaAvailable: 1,
 						lifeTotal:     20,
 					},
-					OPP: &player{},
+					OPP: &player{
+						lifeTotal: 3,
+					},
 				},
 
 				activePlayer:   SELF,
@@ -157,9 +169,35 @@ func TestGetActions(t *testing.T) {
 				action{card: pass},
 			},
 		},
+		{
+			name: "card on the stack -> no sorceries",
+			game: &game{
+				players: []*player{
+					SELF: &player{
+						hand: map[string]int{
+							mountain.name:  2,
+							lavaSpike.name: 3,
+						},
+						manaAvailable: 1,
+						lifeTotal:     20,
+					},
+					OPP: &player{
+						lifeTotal: 3,
+					},
+				},
+
+				activePlayer:   SELF,
+				priorityPlayer: SELF,
+				currentStep:    precombatMainPhase,
+				stack:          []action{{card: lavaSpike.name, controller: SELF}},
+			},
+			pointOfView: SELF,
+			want:        []action{action{card: pass}},
+		},
 
 		// OPPONENT MOVES
 		{
+			name: "opp pass",
 			game: &game{
 				players: []*player{
 					SELF: &player{},
@@ -173,6 +211,7 @@ func TestGetActions(t *testing.T) {
 			want:        []action{action{card: pass, controller: OPP}},
 		},
 		{
+			name: "opp no mana",
 			game: &game{
 				players: []*player{
 					SELF: &player{},
@@ -198,6 +237,7 @@ func TestGetActions(t *testing.T) {
 			},
 		},
 		{
+			name: "opp all the options",
 			game: &game{
 				players: []*player{
 					SELF: &player{},
@@ -226,6 +266,7 @@ func TestGetActions(t *testing.T) {
 			},
 		},
 		{
+			name: "opp no cards in hand",
 			game: &game{
 				players: []*player{
 					SELF: &player{},
@@ -255,7 +296,97 @@ func TestGetActions(t *testing.T) {
 			return got[i].card < got[j].card
 		})
 		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("%d) got %v want %v", i, got, tt.want)
+			t.Errorf("%d: %s) got %v want %v", i, tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestResolveAction(t *testing.T) {
+	for i, tt := range []struct {
+		name   string
+		game   *game
+		action action
+		want   *game
+	}{
+		{
+			name: "pass action",
+			game: &game{
+				players: []*player{
+					SELF: &player{},
+					OPP:  &player{},
+				},
+				priorityPlayer: SELF,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+			},
+			action: action{card: pass, controller: SELF},
+			want: &game{
+				players: []*player{
+					SELF: &player{},
+					OPP:  &player{},
+				},
+				priorityPlayer: OPP,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+				numPasses:      1,
+			},
+		},
+		{
+			name: "play lava spike",
+			game: &game{
+				players: []*player{
+					SELF: &player{
+						hand: map[string]int{
+							lavaSpike.name: 1,
+						},
+						manaAvailable: 1,
+					},
+					OPP: &player{},
+				},
+				priorityPlayer: SELF,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+			},
+			action: action{
+				card:       lavaSpike.name,
+				controller: SELF,
+				effects: []effect{
+					playerEffect{
+						target: OPP,
+					},
+				},
+			},
+			want: &game{
+				players: []*player{
+					SELF: &player{
+						hand:          map[string]int{},
+						manaAvailable: 0,
+					},
+					OPP: &player{},
+				},
+				priorityPlayer: SELF,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+				stack: []action{
+					action{
+						card:       lavaSpike.name,
+						controller: SELF,
+						effects: []effect{
+							playerEffect{
+								target: OPP,
+							},
+						},
+					},
+				},
+			},
+		},
+	} {
+		tt.game.numPlayers = 2
+		tt.want.numPlayers = 2
+		got := tt.game.copy()
+		got.resolveAction(tt.action)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%d: %s) got %#v want %#v", i, tt.name, got, tt.want)
 		}
 	}
 }

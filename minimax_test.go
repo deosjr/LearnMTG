@@ -29,12 +29,8 @@ func TestGetChild(t *testing.T) {
 			want: node{
 				game: &game{
 					players: []*player{
-						SELF: &player{
-							hand: map[string]int{},
-						},
-						OPP: &player{
-							hand: map[string]int{},
-						},
+						SELF: &player{},
+						OPP:  &player{},
 					},
 					priorityPlayer: OPP,
 					activePlayer:   OPP,

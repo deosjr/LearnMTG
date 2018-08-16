@@ -14,21 +14,21 @@ func TestPossibleTargets(t *testing.T) {
 	}{
 		{
 			effect:     selfEffect{},
-			controller: 0,
+			controller: SELF,
 			game:       &game{numPlayers: 2},
-			want:       []effect{selfEffect{target: 0}},
+			want:       []effect{selfEffect{target: SELF}},
 		},
 		{
 			effect:     playerEffect{},
-			controller: 0,
+			controller: SELF,
 			game:       &game{numPlayers: 2},
-			want:       []effect{playerEffect{target: 0}, playerEffect{target: 1}},
+			want:       []effect{playerEffect{target: SELF}, playerEffect{target: OPP}},
 		},
 		{
 			effect:     playerEffect{},
-			controller: 1,
+			controller: OPP,
 			game:       &game{numPlayers: 2},
-			want:       []effect{playerEffect{controller: 1, target: 0}, playerEffect{controller: 1, target: 1}},
+			want:       []effect{playerEffect{target: SELF}, playerEffect{target: OPP}},
 		},
 	} {
 		got := tt.effect.possibleTargets(tt.controller, tt.game)
@@ -46,9 +46,8 @@ func TestApplySelfEffect(t *testing.T) {
 	}{
 		{
 			effect: selfEffect{
-				controller: 0,
-				target:     0,
-				effect:     func(p *player) { p.lifeTotal += 1 },
+				target: SELF,
+				effect: func(p *player) { p.lifeTotal += 1 },
 			},
 			game: &game{
 				numPlayers: 2,
@@ -76,9 +75,8 @@ func TestApplyPlayerEffect(t *testing.T) {
 	}{
 		{
 			effect: playerEffect{
-				controller: 0,
-				target:     1,
-				effect:     func(p *player) { p.lifeTotal -= 3 },
+				target: OPP,
+				effect: func(p *player) { p.lifeTotal -= 3 },
 			},
 			game: &game{
 				numPlayers: 2,
@@ -91,9 +89,8 @@ func TestApplyPlayerEffect(t *testing.T) {
 		},
 		{
 			effect: playerEffect{
-				controller: 1,
-				target:     0,
-				effect:     func(p *player) { p.lifeTotal -= 3 },
+				target: SELF,
+				effect: func(p *player) { p.lifeTotal -= 3 },
 			},
 			game: &game{
 				numPlayers: 2,
