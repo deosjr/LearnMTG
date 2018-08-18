@@ -30,7 +30,7 @@ type battlefield struct {
 
 // the token of type card, i.e. a specific Mountain
 type cardInstance struct {
-	card card
+	card Card
 }
 
 // TODO: battlefield?
@@ -66,11 +66,11 @@ func (p *player) draw() {
 	p.library = p.library[1:]
 }
 
-func (p *player) hasMana(m manacost) bool {
+func (p *player) hasMana(m manaCost) bool {
 	return p.manaAvailable >= m.converted()
 }
 
-func (p *player) payMana(m manacost) {
+func (p *player) payMana(m manaCost) {
 	p.manaAvailable -= m.converted()
 }
 

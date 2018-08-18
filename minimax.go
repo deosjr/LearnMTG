@@ -4,16 +4,47 @@ import (
 	"math"
 )
 
-var maxDepth = 10
+var maxDepth = 20
 
 type node struct {
 	game        *game
 	pointOfView int
 }
 
-func startMinimax(g *game) action {
+type Action interface {
+	getController() int
+}
+
+type action struct {
+	controller int
+}
+
+func (a action) getController() int {
+	return a.controller
+}
+
+type passAction struct {
+	action
+}
+
+// TODO: similarly, activated abilities & triggers etc
+type cardAction struct {
+	action
+	card    Card
+	targets []target
+}
+
+type attackAction struct {
+	action
+}
+
+type blockAction struct {
+	action
+}
+
+func startMinimax(g *game) Action {
 	root := node{game: g, pointOfView: g.priorityPlayer}
-	var a action
+	var a Action
 	bestValue := -math.MaxFloat64
 	for _, childAction := range root.getActionsSelf() {
 		child := root.getChild(childAction)
@@ -55,7 +86,7 @@ func (n node) maximizing() bool {
 	return n.pointOfView == n.game.priorityPlayer
 }
 
-func (n node) getChild(action action) node {
+func (n node) getChild(action Action) node {
 	g := n.game.copy()
 	g.resolveAction(action)
 	return node{
@@ -64,20 +95,11 @@ func (n node) getChild(action action) node {
 	}
 }
 
-var pass = "PASS"
-
-// TODO: split out in play, ability, special, attack and block actions
-type action struct {
-	card       string
-	controller int
-	effects    []effect
-}
-
-func (n node) getActionsSelf() []action {
+func (n node) getActionsSelf() []Action {
 	return n.game.getActions(n.pointOfView)
 }
 
-func (n node) getActionsOpponent() []action {
+func (n node) getActionsOpponent() []Action {
 	// again, two player game assumption for now
 	oppIndex := (n.pointOfView + 1) % 2
 	return n.game.getActions(oppIndex)

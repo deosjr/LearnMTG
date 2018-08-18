@@ -34,7 +34,7 @@ const (
 
 type game struct {
 	players        []*player
-	stack          []action
+	stack          []cardAction
 	currentStep    step
 	turn           int
 	activePlayer   int
@@ -42,6 +42,11 @@ type game struct {
 	startingPlayer int
 	numPlayers     int
 	numPasses      int
+	// some phases have a number of action points for
+	// one or both players involved in combat for example.
+	// we need to track how far along the phase we are here.
+	// decided NOT to split in subphases for clarity later on.
+	declarations int
 }
 
 func newGame(players ...*player) *game {
@@ -60,7 +65,7 @@ func newGame(players ...*player) *game {
 		startingPlayer: startingPlayer,
 		numPlayers:     numPlayers,
 	}
-	g.advanceUntilPriority()
+	g.nextDecisionPoint()
 	return g
 }
 
@@ -68,27 +73,26 @@ func (g *game) loop() {
 	for {
 		g.debug()
 		a := g.getPlayerAction()
-		var ac action
+		var ac cardAction
 		var stacklength int
 		if len(g.stack) != 0 {
 			stacklength = len(g.stack)
 			ac = g.stack[stacklength-1]
 		}
 		g.resolveAction(a)
-		if a.card == pass {
-			fmt.Printf("-> %s passes\n", g.getPlayer(a.controller).name)
+		switch at := a.(type) {
+		case passAction:
+			fmt.Printf("-> %s passes\n", g.getPlayer(a.getController()).name)
 			if len(g.stack) < stacklength {
 				// ac resolved
-				for _, eff := range ac.effects {
-					e := eff.(playerEffect)
-					fmt.Printf("%s resolved by %s targeting %s \n", ac.card, g.getPlayer(ac.controller).name, g.getPlayer(e.target).name)
+				for _, target := range ac.targets {
+					fmt.Printf("%s resolved by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(target.target).name)
 				}
 			}
-		} else {
-			fmt.Printf("-> %s played %s", g.getPlayer(a.controller).name, a.card)
-			if len(a.effects) > 0 {
-				e := a.effects[0].(playerEffect)
-				fmt.Printf(" targeting %s", g.getPlayer(e.target).name)
+		case cardAction:
+			fmt.Printf("-> %s played %s", g.getPlayer(at.controller).name, at.card.getName())
+			if len(at.targets) > 0 {
+				fmt.Printf(" targeting %s", g.getPlayer(at.targets[0].target).name)
 			}
 			fmt.Println()
 		}
@@ -100,39 +104,43 @@ func (g *game) loop() {
 	}
 }
 
-func (g *game) resolveAction(action action) {
-	if action.card == pass {
+func (g *game) resolveAction(action Action) {
+	switch a := action.(type) {
+	case passAction:
 		g.numPasses++
 		// 116.3d If a player has priority and chooses not to take any actions,
 		// that player passes. [...] Then the next player in turn order receives priority.
 		g.advancePriority()
-	} else {
+		// 116.4. If all players pass in succession
+		// (that is, if all players pass without taking any actions in between passing),
+		// the spell or ability on top of the stack resolves or, if the stack is empty,
+		// the phase or step ends.
+		if g.numPasses == g.numPlayers {
+			g.numPasses = 0
+			if len(g.stack) != 0 {
+				g.resolve()
+			} else {
+				g.nextStep()
+				g.nextDecisionPoint()
+			}
+			// 116.3a The active player receives priority at the beginning of most steps and phases [...]
+			// 116.3b The active player receives priority after a spell or ability (other than a mana ability) resolves.
+			g.priorityPlayer = g.activePlayer
+		}
+	case cardAction:
 		// 116.3c If a player has priority when they cast a spell,
 		// activate an ability, or take a special action, that player receives priority afterward.
 		g.numPasses = 0
-		g.play(action)
+		g.play(a)
 		// TODO (currently a hack): special actions (such as playing land)
 		// do not always pass priority to the other player
-		if action.card == "Mountain" {
+		if a.card == mountain {
 			g.resolve()
 		}
-	}
-
-	// 116.4. If all players pass in succession
-	// (that is, if all players pass without taking any actions in between passing),
-	// the spell or ability on top of the stack resolves or, if the stack is empty,
-	// the phase or step ends.
-	if g.numPasses == g.numPlayers {
-		g.numPasses = 0
-		if len(g.stack) != 0 {
-			g.resolve()
-		} else {
-			g.nextStep()
-			g.advanceUntilPriority()
-		}
-		// 116.3a The active player receives priority at the beginning of most steps and phases [...]
-		// 116.3b The active player receives priority after a spell or ability (other than a mana ability) resolves.
-		g.priorityPlayer = g.activePlayer
+	case attackAction:
+		g.declarations += 1
+	case blockAction:
+		g.declarations += 1
 	}
 }
 
@@ -160,7 +168,7 @@ func (g *game) advancePriority() {
 	g.priorityPlayer = (g.priorityPlayer + 1) % g.numPlayers
 }
 
-func (g *game) advanceUntilPriority() {
+func (g *game) nextDecisionPoint() {
 	for {
 		switch g.currentStep {
 		case untapStep:
@@ -175,17 +183,29 @@ func (g *game) advanceUntilPriority() {
 		case beginningOfCombatStep:
 			break //skip
 		case declareAttackersStep:
-			break //skip
+			switch g.declarations {
+			// active player declares attackers
+			case 0:
+				return
+			// attackers have already been declared, continue this step
+			case 1:
+				break
+			}
+			// triggered abilities that trigger off attackers being declared trigger
+			return
 		case declareBlockersStep:
-			break //skip
+			// if no attackers, skip
+			return
 		case combatDamageFirstStrikeStep:
+			// if no attackers, skip
 			break //skip
 		case combatDamageStep:
-			break //skip
+			// if no attackers, skip
+			return
 		case endOfCombatStep:
-			break //skip
+			return
 		case postcombatMainPhase:
-			break //skip
+			return
 		case endStep:
 			break //skip
 		case cleanupStep:
@@ -202,21 +222,21 @@ func (g *game) advanceUntilPriority() {
 
 // this means we only check prereqs against what we know
 // may have to change that to a probability prereq is met
-func (g *game) canPlayCard(pindex int, card card) bool {
+func (g *game) canPlayCard(pindex int, card Card) bool {
 	// prerequisites given by card type
-	if !card.cardType.prereq(g, pindex) {
+	if !card.prereq(g, pindex) {
 		return false
 	}
 
 	p := g.getPlayer(pindex)
 	// can player pay for the card?
-	if !p.hasMana(card.manacost) {
+	if !p.hasMana(card.getManaCost()) {
 		return false
 	}
 	// other prerequisites such as paying life
 	// NOTE: prereq is target available?
 	// --> this is handled by possibleTargets returning 0 actions
-	for _, prereq := range card.prereqs {
+	for _, prereq := range card.getPrereqs() {
 		if !prereq(p) {
 			return false
 		}
@@ -225,6 +245,7 @@ func (g *game) canPlayCard(pindex int, card card) bool {
 }
 
 func (g *game) nextStep() {
+	g.declarations = 0
 	g.currentStep = (g.currentStep + 1) % numSteps
 }
 
@@ -257,7 +278,7 @@ func (g *game) copy() *game {
 	if len(g.stack) == 0 {
 		return newG
 	}
-	newG.stack = make([]action, len(g.stack))
+	newG.stack = make([]cardAction, len(g.stack))
 	for i, a := range g.stack {
 		newG.stack[i] = a
 	}
@@ -272,7 +293,7 @@ func (g *game) debug() {
 	fmt.Printf("           VS %s: %s \n", opp.name, opp.String())
 }
 
-func (g *game) play(a action) {
+func (g *game) play(a cardAction) {
 	p := g.getPlayer(a.controller)
 
 	// remove card from players hand
@@ -281,8 +302,7 @@ func (g *game) play(a action) {
 		delete(p.hand, a.card)
 	}
 
-	c := cards[a.card]
-	p.payMana(c.manacost)
+	p.payMana(a.card.getManaCost())
 
 	g.stack = append(g.stack, a)
 }
@@ -294,13 +314,12 @@ func (g *game) resolve() {
 	a := g.stack[len(g.stack)-1]
 	g.stack = g.stack[:len(g.stack)-1]
 
-	c := cards[a.card]
 	p := g.getPlayer(a.controller)
-	c.resolve(p)
+	a.card.resolve(p)
 
 	// card specific effects
-	for _, effect := range a.effects {
-		effect.apply(g)
+	for _, t := range a.targets {
+		a.card.apply(g, t)
 	}
 }
 
@@ -308,15 +327,14 @@ func (g *game) isMainPhase() bool {
 	return g.currentStep == precombatMainPhase || g.currentStep == postcombatMainPhase
 }
 
-func (g *game) getPlayerAction() action {
+func (g *game) getPlayerAction() Action {
 	return startMinimax(g)
 }
 
-func (g *game) getActions(index int) []action {
+func (g *game) getActions(index int) []Action {
 	p := g.getPlayer(index)
-	actions := []action{action{card: pass, controller: index}}
-	for k, _ := range p.hand {
-		card := cards[k]
+	actions := []Action{passAction{action{controller: index}}}
+	for card, _ := range p.hand {
 		if !g.canPlayCard(index, card) {
 			continue
 		}
@@ -325,35 +343,35 @@ func (g *game) getActions(index int) []action {
 	return actions
 }
 
-func (g *game) getCardActions(card card, controller int) []action {
-	if card.effects == nil {
-		return []action{action{card: card.name, controller: controller}}
+func (g *game) getCardActions(card Card, controller int) []Action {
+	if card.getEffects() == nil {
+		return []Action{cardAction{card: card, action: action{controller: controller}}}
 	}
-	actions := []action{}
-	effects := [][]effect{}
-	for _, e := range card.effects {
-		effects = append(effects, e.possibleTargets(controller, g))
+	actions := []Action{}
+	targets := [][]target{}
+	for i, e := range card.getEffects() {
+		targets = append(targets, e.possibleTargets(i, controller, g))
 	}
 	// Multi-target combinatorics (TODO: with constraints such as no same target!)
-	if len(effects) == 0 {
+	if len(targets) == 0 {
 		return actions
 	}
-	oldArr := [][]effect{}
-	for _, e := range effects[0] {
-		oldArr = append(oldArr, []effect{e})
+	oldArr := [][]target{}
+	for _, t := range targets[0] {
+		oldArr = append(oldArr, []target{t})
 	}
-	newArr := [][]effect{}
-	for _, ea := range effects[1:] {
-		for _, e := range ea {
-			for _, oe := range oldArr {
-				newArr = append(newArr, append(oe, e))
+	newArr := [][]target{}
+	for _, ta := range targets[1:] {
+		for _, t := range ta {
+			for _, ot := range oldArr {
+				newArr = append(newArr, append(ot, t))
 			}
 		}
 		oldArr = newArr
-		newArr = [][]effect{}
+		newArr = [][]target{}
 	}
-	for _, e := range oldArr {
-		action := action{card: card.name, controller: controller, effects: e}
+	for _, t := range oldArr {
+		action := cardAction{card: card, action: action{controller: controller}, targets: t}
 		actions = append(actions, action)
 	}
 	return actions

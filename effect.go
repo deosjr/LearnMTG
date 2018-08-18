@@ -2,48 +2,55 @@ package main
 
 // For permanent targets this might get hairy if they change
 // but players never change so this is simple
-type effect interface {
-	possibleTargets(controllingPlayer int, game *game) []effect
-	apply(*game)
+type Effect interface {
+	possibleTargets(effectIndex, controllingPlayer int, game *game) []target
+	getEffect() func(*player)
 }
 
-type selfEffect struct {
-	target int
+type effect struct {
 	effect func(*player)
 }
 
-func (e selfEffect) possibleTargets(controllingPlayer int, game *game) []effect {
-	return []effect{
-		selfEffect{
+func (e effect) getEffect() func(*player) {
+	return e.effect
+}
+
+func (c card) apply(g *game, target target) {
+	e := c.getEffects()[target.effect]
+	f := e.getEffect()
+	f(g.getPlayer(target.target))
+}
+
+type selfEffect struct {
+	effect
+}
+
+type playerEffect struct {
+	effect
+}
+
+type target struct {
+	effect int
+	target int
+}
+
+func (e selfEffect) possibleTargets(effectIndex, controllingPlayer int, _ *game) []target {
+	return []target{
+		target{
 			target: controllingPlayer,
-			effect: e.effect,
+			effect: effectIndex,
 		},
 	}
 }
 
-func (e selfEffect) apply(game *game) {
-	p := game.getPlayer(e.target)
-	e.effect(p)
-}
-
-type playerEffect struct {
-	target int
-	effect func(*player)
-}
-
-func (e playerEffect) possibleTargets(_ int, game *game) []effect {
-	effects := []effect{}
+func (e playerEffect) possibleTargets(effectIndex, _ int, game *game) []target {
+	effects := []target{}
 	for i := 0; i < game.numPlayers; i++ {
-		pe := playerEffect{
+		pe := target{
 			target: i,
-			effect: e.effect,
+			effect: effectIndex,
 		}
 		effects = append(effects, pe)
 	}
 	return effects
-}
-
-func (e playerEffect) apply(game *game) {
-	p := game.getPlayer(e.target)
-	e.effect(p)
 }

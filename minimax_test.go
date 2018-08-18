@@ -8,7 +8,7 @@ import (
 func TestGetChild(t *testing.T) {
 	for i, tt := range []struct {
 		node   node
-		action action
+		action Action
 		want   node
 	}{
 		{
@@ -25,7 +25,7 @@ func TestGetChild(t *testing.T) {
 				},
 				pointOfView: SELF,
 			},
-			action: action{card: pass, controller: SELF},
+			action: passAction{action: action{controller: SELF}},
 			want: node{
 				game: &game{
 					players: []*player{

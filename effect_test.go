@@ -7,31 +7,31 @@ import (
 
 func TestPossibleTargets(t *testing.T) {
 	for i, tt := range []struct {
-		effect     effect
+		effect     Effect
 		controller int
 		game       *game
-		want       []effect
+		want       []target
 	}{
 		{
 			effect:     selfEffect{},
 			controller: SELF,
 			game:       &game{numPlayers: 2},
-			want:       []effect{selfEffect{target: SELF}},
+			want:       []target{{target: SELF}},
 		},
 		{
 			effect:     playerEffect{},
 			controller: SELF,
 			game:       &game{numPlayers: 2},
-			want:       []effect{playerEffect{target: SELF}, playerEffect{target: OPP}},
+			want:       []target{{target: SELF}, {target: OPP}},
 		},
 		{
 			effect:     playerEffect{},
 			controller: OPP,
 			game:       &game{numPlayers: 2},
-			want:       []effect{playerEffect{target: SELF}, playerEffect{target: OPP}},
+			want:       []target{{target: SELF}, {target: OPP}},
 		},
 	} {
-		got := tt.effect.possibleTargets(tt.controller, tt.game)
+		got := tt.effect.possibleTargets(0, tt.controller, tt.game)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -40,27 +40,27 @@ func TestPossibleTargets(t *testing.T) {
 
 func TestApplySelfEffect(t *testing.T) {
 	for i, tt := range []struct {
-		effect selfEffect
+		effect func(*player)
+		target target
 		game   *game
 		want   player
 	}{
 		{
-			effect: selfEffect{
-				target: SELF,
-				effect: func(p *player) { p.lifeTotal += 1 },
-			},
+			target: target{target: SELF},
+			effect: func(p *player) { p.lifeTotal += 1 },
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
-					&player{lifeTotal: 3},
-					&player{lifeTotal: 5},
+					SELF: &player{lifeTotal: 3},
+					OPP:  &player{lifeTotal: 5},
 				},
 			},
 			want: player{lifeTotal: 4},
 		},
 	} {
-		tt.effect.apply(tt.game)
-		got := *tt.game.getPlayer(tt.effect.target)
+		c := card{effects: []Effect{selfEffect{effect: effect{effect: tt.effect}}}}
+		c.apply(tt.game, tt.target)
+		got := *tt.game.getPlayer(tt.target.target)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -69,15 +69,14 @@ func TestApplySelfEffect(t *testing.T) {
 
 func TestApplyPlayerEffect(t *testing.T) {
 	for i, tt := range []struct {
-		effect playerEffect
+		effect func(*player)
+		target target
 		game   *game
 		want   player
 	}{
 		{
-			effect: playerEffect{
-				target: OPP,
-				effect: func(p *player) { p.lifeTotal -= 3 },
-			},
+			target: target{target: OPP},
+			effect: func(p *player) { p.lifeTotal -= 3 },
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
@@ -88,10 +87,8 @@ func TestApplyPlayerEffect(t *testing.T) {
 			want: player{lifeTotal: 5},
 		},
 		{
-			effect: playerEffect{
-				target: SELF,
-				effect: func(p *player) { p.lifeTotal -= 3 },
-			},
+			target: target{target: SELF},
+			effect: func(p *player) { p.lifeTotal -= 3 },
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
@@ -102,8 +99,9 @@ func TestApplyPlayerEffect(t *testing.T) {
 			want: player{lifeTotal: 1},
 		},
 	} {
-		tt.effect.apply(tt.game)
-		got := *tt.game.getPlayer(tt.effect.target)
+		c := card{effects: []Effect{playerEffect{effect: effect{effect: tt.effect}}}}
+		c.apply(tt.game, tt.target)
+		got := *tt.game.getPlayer(tt.target.target)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}

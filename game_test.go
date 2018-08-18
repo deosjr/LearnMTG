@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -15,7 +16,7 @@ func TestGetPlayerAction(t *testing.T) {
 	for i, tt := range []struct {
 		name string
 		game *game
-		want action
+		want Action
 	}{
 		{
 			name: "no options means pass",
@@ -28,30 +29,36 @@ func TestGetPlayerAction(t *testing.T) {
 				activePlayer:   OPP,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: pass, controller: SELF},
+			want: passAction{action{controller: SELF}},
 		},
 		{
 			name: "lava spike for the win",
 			game: &game{
 				players: []*player{
 					SELF: &player{
-						hand: map[string]int{
-							mountain.name:  1,
-							lavaSpike.name: 1,
+						hand: map[Card]int{
+							mountain:  1,
+							lavaSpike: 1,
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
 					},
 					OPP: &player{
 						lifeTotal: 3,
-						library:   []string{mountain.name},
+						library:   []Card{mountain},
 					},
 				},
 				priorityPlayer: SELF,
 				activePlayer:   SELF,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: lavaSpike.name, controller: SELF},
+			want: cardAction{
+				card:   lavaSpike,
+				action: action{controller: SELF},
+				targets: []target{
+					{target: OPP},
+				},
+			},
 		},
 		{
 			name: "opp lava spike for the win",
@@ -59,12 +66,12 @@ func TestGetPlayerAction(t *testing.T) {
 				players: []*player{
 					SELF: &player{
 						lifeTotal: 3,
-						library:   []string{mountain.name},
+						library:   []Card{mountain},
 					},
 					OPP: &player{
-						hand: map[string]int{
-							mountain.name:  1,
-							lavaSpike.name: 1,
+						hand: map[Card]int{
+							mountain:  1,
+							lavaSpike: 1,
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
@@ -74,7 +81,13 @@ func TestGetPlayerAction(t *testing.T) {
 				activePlayer:   OPP,
 				currentStep:    precombatMainPhase,
 			},
-			want: action{card: lavaSpike.name, controller: OPP},
+			want: cardAction{
+				card:   lavaSpike,
+				action: action{controller: OPP},
+				targets: []target{
+					{target: SELF},
+				},
+			},
 		},
 	} {
 		oldMax := maxDepth
@@ -84,7 +97,6 @@ func TestGetPlayerAction(t *testing.T) {
 		}()
 		tt.game.numPlayers = 2
 		got := tt.game.getPlayerAction()
-		got.effects = nil
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d: %s) got %v want %v", i, tt.name, got, tt.want)
 		}
@@ -96,7 +108,7 @@ func TestGetActions(t *testing.T) {
 		name        string
 		game        *game
 		pointOfView int
-		want        []action
+		want        []Action
 	}{
 		// SELF MOVES
 		{
@@ -111,8 +123,8 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want: []action{
-				action{card: pass},
+			want: []Action{
+				passAction{action{controller: SELF}},
 			},
 		},
 		{
@@ -120,9 +132,9 @@ func TestGetActions(t *testing.T) {
 			game: &game{
 				players: []*player{
 					SELF: &player{
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						hand: map[Card]int{
+							mountain:  2,
+							lavaSpike: 3,
 						},
 						manaAvailable: 0,
 						lifeTotal:     20,
@@ -134,9 +146,9 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want: []action{
-				{card: mountain.name, controller: SELF},
-				action{card: pass},
+			want: []Action{
+				cardAction{card: mountain, action: action{controller: SELF}},
+				passAction{action{controller: SELF}},
 			},
 		},
 		{
@@ -144,9 +156,9 @@ func TestGetActions(t *testing.T) {
 			game: &game{
 				players: []*player{
 					SELF: &player{
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						hand: map[Card]int{
+							mountain:  2,
+							lavaSpike: 3,
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
@@ -161,12 +173,23 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want: []action{
-				// targetting self, targetting opp
-				{card: lavaSpike.name, controller: SELF},
-				{card: lavaSpike.name, controller: SELF},
-				{card: mountain.name, controller: SELF},
-				action{card: pass},
+			want: []Action{
+				cardAction{
+					card:   lavaSpike,
+					action: action{controller: SELF},
+					targets: []target{
+						{target: SELF},
+					},
+				},
+				cardAction{
+					card:   lavaSpike,
+					action: action{controller: SELF},
+					targets: []target{
+						{target: OPP},
+					},
+				},
+				cardAction{card: mountain, action: action{controller: SELF}},
+				passAction{action{controller: SELF}},
 			},
 		},
 		{
@@ -174,9 +197,9 @@ func TestGetActions(t *testing.T) {
 			game: &game{
 				players: []*player{
 					SELF: &player{
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						hand: map[Card]int{
+							mountain:  2,
+							lavaSpike: 3,
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
@@ -189,10 +212,10 @@ func TestGetActions(t *testing.T) {
 				activePlayer:   SELF,
 				priorityPlayer: SELF,
 				currentStep:    precombatMainPhase,
-				stack:          []action{{card: lavaSpike.name, controller: SELF}},
+				stack:          []cardAction{cardAction{card: lavaSpike, action: action{controller: SELF}}},
 			},
 			pointOfView: SELF,
-			want:        []action{action{card: pass}},
+			want:        []Action{passAction{action{controller: SELF}}},
 		},
 
 		// OPPONENT MOVES
@@ -208,7 +231,7 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want:        []action{action{card: pass, controller: OPP}},
+			want:        []Action{passAction{action{controller: OPP}}},
 		},
 		{
 			name: "opp no mana",
@@ -216,9 +239,9 @@ func TestGetActions(t *testing.T) {
 				players: []*player{
 					SELF: &player{},
 					OPP: &player{
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						hand: map[Card]int{
+							mountain:  2,
+							lavaSpike: 3,
 						},
 						manaAvailable: 0,
 						lifeTotal:     20,
@@ -231,9 +254,9 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want: []action{
-				{card: mountain.name, controller: OPP},
-				action{card: pass, controller: OPP},
+			want: []Action{
+				cardAction{card: mountain, action: action{controller: OPP}},
+				passAction{action{controller: OPP}},
 			},
 		},
 		{
@@ -242,9 +265,9 @@ func TestGetActions(t *testing.T) {
 				players: []*player{
 					SELF: &player{},
 					OPP: &player{
-						hand: map[string]int{
-							mountain.name:  2,
-							lavaSpike.name: 3,
+						hand: map[Card]int{
+							mountain:  2,
+							lavaSpike: 3,
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
@@ -257,12 +280,23 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want: []action{
-				// targetting self, targetting opp
-				{card: lavaSpike.name, controller: OPP},
-				{card: lavaSpike.name, controller: OPP},
-				{card: mountain.name, controller: OPP},
-				action{card: pass, controller: OPP},
+			want: []Action{
+				cardAction{
+					card:   lavaSpike,
+					action: action{controller: OPP},
+					targets: []target{
+						{target: OPP},
+					},
+				},
+				cardAction{
+					card:   lavaSpike,
+					action: action{controller: OPP},
+					targets: []target{
+						{target: SELF},
+					},
+				},
+				cardAction{card: mountain, action: action{controller: OPP}},
+				passAction{action{controller: OPP}},
 			},
 		},
 		{
@@ -271,7 +305,7 @@ func TestGetActions(t *testing.T) {
 				players: []*player{
 					SELF: &player{},
 					OPP: &player{
-						hand:          map[string]int{},
+						hand:          map[Card]int{},
 						manaAvailable: 1,
 						lifeTotal:     20,
 						deckList:      deckList,
@@ -283,17 +317,16 @@ func TestGetActions(t *testing.T) {
 				currentStep:    precombatMainPhase,
 			},
 			pointOfView: SELF,
-			want:        []action{action{card: pass, controller: OPP}},
+			want:        []Action{passAction{action{controller: OPP}}},
 		},
 	} {
 		tt.game.numPlayers = 2
 		got := tt.game.getActions(tt.game.priorityPlayer)
-		for i, a := range got {
-			a.effects = nil
-			got[i] = a
-		}
 		sort.Slice(got, func(i, j int) bool {
-			return got[i].card < got[j].card
+			return fmt.Sprintf("%v", got[i]) < fmt.Sprintf("%v", got[j])
+		})
+		sort.Slice(tt.want, func(i, j int) bool {
+			return fmt.Sprintf("%v", tt.want[i]) < fmt.Sprintf("%v", tt.want[j])
 		})
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d: %s) got %v want %v", i, tt.name, got, tt.want)
@@ -305,7 +338,7 @@ func TestResolveAction(t *testing.T) {
 	for i, tt := range []struct {
 		name   string
 		game   *game
-		action action
+		action Action
 		want   *game
 	}{
 		{
@@ -319,7 +352,7 @@ func TestResolveAction(t *testing.T) {
 				activePlayer:   SELF,
 				currentStep:    precombatMainPhase,
 			},
-			action: action{card: pass, controller: SELF},
+			action: passAction{action{controller: SELF}},
 			want: &game{
 				players: []*player{
 					SELF: &player{},
@@ -336,8 +369,8 @@ func TestResolveAction(t *testing.T) {
 			game: &game{
 				players: []*player{
 					SELF: &player{
-						hand: map[string]int{
-							lavaSpike.name: 1,
+						hand: map[Card]int{
+							lavaSpike: 1,
 						},
 						manaAvailable: 1,
 					},
@@ -347,11 +380,11 @@ func TestResolveAction(t *testing.T) {
 				activePlayer:   SELF,
 				currentStep:    precombatMainPhase,
 			},
-			action: action{
-				card:       lavaSpike.name,
-				controller: SELF,
-				effects: []effect{
-					playerEffect{
+			action: cardAction{
+				card:   lavaSpike,
+				action: action{controller: SELF},
+				targets: []target{
+					target{
 						target: OPP,
 					},
 				},
@@ -359,7 +392,7 @@ func TestResolveAction(t *testing.T) {
 			want: &game{
 				players: []*player{
 					SELF: &player{
-						hand:          map[string]int{},
+						hand:          map[Card]int{},
 						manaAvailable: 0,
 					},
 					OPP: &player{},
@@ -367,12 +400,12 @@ func TestResolveAction(t *testing.T) {
 				priorityPlayer: SELF,
 				activePlayer:   SELF,
 				currentStep:    precombatMainPhase,
-				stack: []action{
-					action{
-						card:       lavaSpike.name,
-						controller: SELF,
-						effects: []effect{
-							playerEffect{
+				stack: []cardAction{
+					cardAction{
+						card:   lavaSpike,
+						action: action{controller: SELF},
+						targets: []target{
+							target{
 								target: OPP,
 							},
 						},
