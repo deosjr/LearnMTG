@@ -28,12 +28,33 @@ type battlefield struct {
 	other     []cardInstance
 }
 
-// the token of type card, i.e. a specific Mountain
-type cardInstance struct {
-	card Card
+func (b battlefield) copy() battlefield {
+	return battlefield{
+		lands:     copyBattlefield(b.lands),
+		creatures: copyBattlefield(b.creatures),
+		other:     copyBattlefield(b.other),
+	}
 }
 
-// TODO: battlefield?
+func copyBattlefield(list []cardInstance) []cardInstance {
+	if len(list) == 0 {
+		return nil
+	}
+	newlist := make([]cardInstance, len(list))
+	for i, ci := range list {
+		newlist[i] = ci
+	}
+	return newlist
+}
+
+// the token of type card, i.e. a specific Mountain
+type cardInstance struct {
+	card              Card
+	tapped            bool
+	summoningSickness bool
+	attacking         int
+}
+
 func (p *player) copy() *player {
 	newP := &player{}
 	*newP = *p
@@ -44,6 +65,7 @@ func (p *player) copy() *player {
 	for k, v := range p.hand {
 		newP.hand[k] = v
 	}
+	newP.battlefield = p.battlefield.copy()
 	return newP
 }
 

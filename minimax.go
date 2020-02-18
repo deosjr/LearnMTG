@@ -36,6 +36,7 @@ type cardAction struct {
 
 type attackAction struct {
 	action
+	attackers []target
 }
 
 type blockAction struct {

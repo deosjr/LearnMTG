@@ -143,7 +143,12 @@ func (c *creature) prereq(g *game, pindex int) bool {
 }
 
 func (c *creature) resolve(p *player) {
-	p.battlefield.creatures = append(p.battlefield.creatures, cardInstance{card: c})
+	instance := cardInstance{
+		card:              c,
+		attacking:         -1,
+		summoningSickness: true,
+	}
+	p.battlefield.creatures = append(p.battlefield.creatures, instance)
 }
 
 func sorcerySpeed(g *game, pindex int) bool {

@@ -16,7 +16,7 @@ func (e effect) getEffect() func(*player) {
 }
 
 func (c card) apply(g *game, target target) {
-	e := c.getEffects()[target.effect]
+	e := c.getEffects()[target.index]
 	f := e.getEffect()
 	f(g.getPlayer(target.target))
 }
@@ -30,7 +30,7 @@ type playerEffect struct {
 }
 
 type target struct {
-	effect int
+	index  int
 	target int
 }
 
@@ -38,7 +38,7 @@ func (e selfEffect) possibleTargets(effectIndex, controllingPlayer int, _ *game)
 	return []target{
 		target{
 			target: controllingPlayer,
-			effect: effectIndex,
+			index:  effectIndex,
 		},
 	}
 }
@@ -48,7 +48,7 @@ func (e playerEffect) possibleTargets(effectIndex, _ int, game *game) []target {
 	for i := 0; i < game.numPlayers; i++ {
 		pe := target{
 			target: i,
-			effect: effectIndex,
+			index:  effectIndex,
 		}
 		effects = append(effects, pe)
 	}

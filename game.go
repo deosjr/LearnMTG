@@ -32,6 +32,26 @@ const (
 	numSteps // so we can do step + 1 % numSteps for turn wrap
 )
 
+var steps = []string{
+	"untap step",
+	"upkeep step",
+	"draw step",
+	"precombat main phase",
+	"beginning of combat step",
+	"declare attackers step",
+	"declare blockers step",
+	"first strike damage step",
+	"combat damage step",
+	"end of combat step",
+	"postcombat main phase",
+	"end step",
+	"cleanup step",
+}
+
+func stepName(step step) string {
+	return steps[step]
+}
+
 type game struct {
 	players        []*player
 	stack          []cardAction
@@ -47,6 +67,7 @@ type game struct {
 	// we need to track how far along the phase we are here.
 	// decided NOT to split in subphases for clarity later on.
 	declarations int
+	numAttackers int
 }
 
 func newGame(players ...*player) *game {
@@ -86,15 +107,24 @@ func (g *game) loop() {
 			if len(g.stack) < stacklength {
 				// ac resolved
 				for _, target := range ac.targets {
-					fmt.Printf("%s resolved by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(target.target).name)
+					fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(target.target).name)
 				}
 			}
 		case cardAction:
-			fmt.Printf("-> %s played %s", g.getPlayer(at.controller).name, at.card.getName())
+			fmt.Printf("-> %s playes %s", g.getPlayer(at.controller).name, at.card.getName())
 			if len(at.targets) > 0 {
 				fmt.Printf(" targeting %s", g.getPlayer(at.targets[0].target).name)
 			}
 			fmt.Println()
+		case attackAction:
+			attackers := []string{}
+			for _, c := range g.getPlayer(at.controller).battlefield.creatures {
+				if c.attacking == -1 {
+					continue
+				}
+				attackers = append(attackers, c.card.getName())
+			}
+			fmt.Printf("-> %s attacks with %s \n", g.getPlayer(at.controller).name, attackers)
 		}
 		if gameEnds := g.checkStateBasedActions(); gameEnds {
 			g.debug()
@@ -139,6 +169,7 @@ func (g *game) resolveAction(action Action) {
 		}
 	case attackAction:
 		g.declarations += 1
+		g.declareAttackers(a)
 	case blockAction:
 		g.declarations += 1
 	}
@@ -172,37 +203,46 @@ func (g *game) nextDecisionPoint() {
 	for {
 		switch g.currentStep {
 		case untapStep:
-			activePlayer := g.getActivePlayer()
-			activePlayer.manaAvailable = activePlayer.manaTotal
+			g.untapStep()
+			return
 		case upkeepStep:
 			break //skip
 		case drawStep:
-			g.getActivePlayer().draw()
+			g.drawStep()
+			return
 		case precombatMainPhase:
 			return
 		case beginningOfCombatStep:
 			break //skip
 		case declareAttackersStep:
-			switch g.declarations {
-			// active player declares attackers
-			case 0:
+			if g.declarations == 0 {
+				// active player declares attackers
 				return
-			// attackers have already been declared, continue this step
-			case 1:
-				break
 			}
+			// attackers have already been declared, continue this step
 			// triggered abilities that trigger off attackers being declared trigger
 			return
 		case declareBlockersStep:
 			// if no attackers, skip
-			return
+			if g.numAttackers == 0 {
+				break
+			}
+			break //skip
 		case combatDamageFirstStrikeStep:
 			// if no attackers, skip
+			if g.numAttackers == 0 {
+				break
+			}
 			break //skip
 		case combatDamageStep:
 			// if no attackers, skip
+			if g.numAttackers == 0 {
+				break
+			}
+			g.combatDamageStep()
 			return
 		case endOfCombatStep:
+			g.endOfCombatStep()
 			return
 		case postcombatMainPhase:
 			return
@@ -218,6 +258,37 @@ func (g *game) nextDecisionPoint() {
 		g.nextStep()
 	}
 	return
+}
+
+func (g *game) untapStep() {
+	activePlayer := g.getActivePlayer()
+	activePlayer.manaAvailable = activePlayer.manaTotal
+	for i, c := range activePlayer.battlefield.creatures {
+		c.summoningSickness = false
+		c.tapped = false
+		activePlayer.battlefield.creatures[i] = c
+	}
+}
+
+func (g *game) drawStep() {
+	g.getActivePlayer().draw()
+}
+
+func (g *game) combatDamageStep() {
+	activePlayer := g.getActivePlayer()
+	for i, c := range activePlayer.battlefield.creatures {
+		if c.attacking == -1 {
+			continue
+		}
+		defendingPlayer := g.getPlayer(c.attacking)
+		defendingPlayer.lifeTotal -= c.card.(*creature).power
+		c.attacking = -1
+		activePlayer.battlefield.creatures[i] = c
+	}
+}
+
+func (g *game) endOfCombatStep() {
+	g.numAttackers = 0
 }
 
 // this means we only check prereqs against what we know
@@ -289,7 +360,7 @@ func (g *game) debug() {
 	activePlayer := g.getActivePlayer()
 	opp := g.getOpponent(g.activePlayer)
 	fmt.Println("----------------------------------------------------------------")
-	fmt.Printf("%s turn %d step %d: %s \n", activePlayer.name, g.turn, g.currentStep, activePlayer.String())
+	fmt.Printf("%s turn %d step %s: %s \n", activePlayer.name, g.turn, stepName(g.currentStep), activePlayer.String())
 	fmt.Printf("           VS %s: %s \n", opp.name, opp.String())
 }
 
@@ -323,6 +394,17 @@ func (g *game) resolve() {
 	}
 }
 
+func (g *game) declareAttackers(a attackAction) {
+	p := g.getPlayer(a.getController())
+	for _, att := range a.attackers {
+		attacker := p.battlefield.creatures[att.index]
+		attacker.attacking = att.target
+		attacker.tapped = true
+		p.battlefield.creatures[att.index] = attacker
+	}
+	g.numAttackers = len(a.attackers)
+}
+
 func (g *game) isMainPhase() bool {
 	return g.currentStep == precombatMainPhase || g.currentStep == postcombatMainPhase
 }
@@ -332,8 +414,11 @@ func (g *game) getPlayerAction() Action {
 }
 
 func (g *game) getActions(index int) []Action {
-	p := g.getPlayer(index)
 	actions := []Action{passAction{action{controller: index}}}
+	if g.currentStep == declareAttackersStep && g.declarations == 0 {
+		return g.getAttacks(index)
+	}
+	p := g.getPlayer(index)
 	for card, _ := range p.hand {
 		if !g.canPlayCard(index, card) {
 			continue
@@ -341,6 +426,25 @@ func (g *game) getActions(index int) []Action {
 		actions = append(actions, g.getCardActions(card, index)...)
 	}
 	return actions
+}
+
+func (g *game) getAttacks(index int) []Action {
+	p := g.getPlayer(index)
+	// two player assumption
+	opp := (index + 1) % 2
+	creatures := []int{}
+	for i, c := range p.battlefield.creatures {
+		if c.tapped || c.summoningSickness {
+			continue
+		}
+		creatures = append(creatures, i)
+	}
+	// TODO: first attempt, always attack with everything
+	attackers := []target{}
+	for _, c := range creatures {
+		attackers = append(attackers, target{index: c, target: opp})
+	}
+	return []Action{attackAction{action: action{controller: index}, attackers: attackers}}
 }
 
 func (g *game) getCardActions(card Card, controller int) []Action {
