@@ -13,6 +13,8 @@ func main() {
 
 	p1 := newPlayer("player1", deckList)
 	p2 := newPlayer("player2", deckList)
+    p1.strategy = simpleStrategy{}
+    p2.strategy = minmaxStrategy{}
 
 	game := newGame(p1, p2)
 	game.loop()

@@ -22,8 +22,8 @@ func TestGetPlayerAction(t *testing.T) {
 			name: "no options means pass",
 			game: &game{
 				players: []*player{
-					SELF: &player{},
-					OPP:  &player{},
+					SELF: &player{strategy:minmaxStrategy{}},
+					OPP:  &player{strategy:minmaxStrategy{}},
 				},
 				priorityPlayer: SELF,
 				activePlayer:   OPP,
@@ -42,10 +42,12 @@ func TestGetPlayerAction(t *testing.T) {
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
+                        strategy:      minmaxStrategy{},
 					},
 					OPP: &player{
 						lifeTotal: 3,
 						library:   []Card{mountain},
+                        strategy:   minmaxStrategy{},
 					},
 				},
 				priorityPlayer: SELF,
@@ -67,6 +69,7 @@ func TestGetPlayerAction(t *testing.T) {
 					SELF: &player{
 						lifeTotal: 3,
 						library:   []Card{mountain},
+                        strategy:   minmaxStrategy{},
 					},
 					OPP: &player{
 						hand: map[Card]int{
@@ -75,6 +78,7 @@ func TestGetPlayerAction(t *testing.T) {
 						},
 						manaAvailable: 1,
 						lifeTotal:     20,
+                        strategy:   minmaxStrategy{},
 					},
 				},
 				priorityPlayer: OPP,

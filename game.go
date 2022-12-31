@@ -410,7 +410,8 @@ func (g *game) isMainPhase() bool {
 }
 
 func (g *game) getPlayerAction() Action {
-	return startMinimax(g)
+    p := g.players[g.priorityPlayer]
+    return p.strategy.NextAction(p, g)
 }
 
 func (g *game) getActions(index int) []Action {
@@ -433,7 +434,7 @@ func (g *game) getAttacks(index int) []Action {
 	// two player assumption
 	opp := (index + 1) % 2
 	creatures := []int{}
-	for i, c := range p.battlefield.creatures {
+	for i, c := range p.strategy.Attackers(p, g) {
 		if c.tapped || c.summoningSickness {
 			continue
 		}

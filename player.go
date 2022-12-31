@@ -20,6 +20,8 @@ type player struct {
 	// simplification for now, think hearthstone
 	manaTotal     int
 	manaAvailable int
+
+    strategy Strategy
 }
 
 type battlefield struct {
