@@ -111,7 +111,7 @@ func (g *game) loop() {
 				}
 			}
 		case cardAction:
-			fmt.Printf("-> %s playes %s", g.getPlayer(at.controller).name, at.card.getName())
+			fmt.Printf("-> %s plays %s", g.getPlayer(at.controller).name, at.card.getName())
 			if len(at.targets) > 0 {
 				fmt.Printf(" targeting %s", g.getPlayer(at.targets[0].target).name)
 			}

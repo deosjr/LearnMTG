@@ -17,10 +17,45 @@ type Strategy interface {
 type simpleStrategy struct {}
 
 func (simpleStrategy) NextAction(p *player, g *game) Action {
+    pIndex := g.priorityPlayer
     if g.currentStep == declareAttackersStep && g.declarations == 0 {
-        return g.getAttacks(g.activePlayer)[0]
+        return g.getAttacks(pIndex)[0]
     }
-    return passAction{action{controller: g.activePlayer}}
+    if g.currentStep != postcombatMainPhase {
+        return passAction{action{controller: pIndex}}
+    }
+    for c := range p.hand {
+        if _, ok := c.(*land); !ok {
+            continue
+        }
+        if !g.canPlayCard(pIndex, c) {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: pIndex}}
+    }
+    for c := range p.hand {
+        if _, ok := c.(*creature); !ok {
+            continue
+        }
+        if !g.canPlayCard(pIndex, c) {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: pIndex}}
+    }
+    for c := range p.hand {
+        s, ok := c.(*sorcery)
+        if !ok {
+            continue
+        }
+        if s.name != "Lava Spike" {
+            continue
+        }
+        if !g.canPlayCard(pIndex, c) {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: pIndex}, targets: []target{{index:0, target:(pIndex+1)%2}}}
+    }
+    return passAction{action{controller: pIndex}}
 }
 
 func (simpleStrategy) Attackers(p *player, _ *game) []cardInstance {
