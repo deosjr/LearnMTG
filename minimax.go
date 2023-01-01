@@ -4,43 +4,22 @@ import (
 	"math"
 )
 
+// legacy: minmax is probably not feasible to use
+type minmaxStrategy struct {}
+
+func (minmaxStrategy) NextAction(_ *player, g *game) Action {
+    return startMinimax(g)
+}
+
+func (minmaxStrategy) Attacks(p *player, g *game) attackAction {
+    return startMinimax(g).(attackAction)
+}
+
 var maxDepth = 20
 
 type node struct {
 	game        *game
 	pointOfView int
-}
-
-type Action interface {
-	getController() int
-}
-
-type action struct {
-	controller int
-}
-
-func (a action) getController() int {
-	return a.controller
-}
-
-type passAction struct {
-	action
-}
-
-// TODO: similarly, activated abilities & triggers etc
-type cardAction struct {
-	action
-	card    Card
-	targets []target
-}
-
-type attackAction struct {
-	action
-	attackers []target
-}
-
-type blockAction struct {
-	action
 }
 
 func startMinimax(g *game) Action {
@@ -131,4 +110,60 @@ func (n node) evaluate(depth int) float64 {
 func (n node) isTerminal() bool {
 	// NOTE: needs to only consider game ending state based actions
 	return n.game.checkStateBasedActions()
+}
+
+func (g *game) getActions(index int) []Action {
+	actions := []Action{passAction{action{controller: index}}}
+	if g.currentStep == declareAttackersStep && g.declarations == 0 {
+		return g.getAttacks(index)
+	}
+	p := g.getPlayer(index)
+	for card, _ := range p.hand {
+		if !g.canPlayCard(index, card) {
+			continue
+		}
+		actions = append(actions, g.getCardActions(card, index)...)
+	}
+	return actions
+}
+
+func (g *game) getAttacks(index int) []Action {
+	// TODO: first attempt, always attack with everything
+    // for minimax, this should return the superset of attackers instead
+    p := g.getPlayer(index)
+    return []Action{attackWithAll(p, index)}
+}
+
+func (g *game) getCardActions(card Card, controller int) []Action {
+	if card.getEffects() == nil {
+		return []Action{cardAction{card: card, action: action{controller: controller}}}
+	}
+	actions := []Action{}
+	targets := [][]target{}
+	for i, e := range card.getEffects() {
+		targets = append(targets, e.possibleTargets(i, controller, g))
+	}
+	// Multi-target combinatorics (TODO: with constraints such as no same target!)
+	if len(targets) == 0 {
+		return actions
+	}
+	oldArr := [][]target{}
+	for _, t := range targets[0] {
+		oldArr = append(oldArr, []target{t})
+	}
+	newArr := [][]target{}
+	for _, ta := range targets[1:] {
+		for _, t := range ta {
+			for _, ot := range oldArr {
+				newArr = append(newArr, append(ot, t))
+			}
+		}
+		oldArr = newArr
+		newArr = [][]target{}
+	}
+	for _, t := range oldArr {
+		action := cardAction{card: card, action: action{controller: controller}, targets: t}
+		actions = append(actions, action)
+	}
+	return actions
 }

@@ -411,73 +411,8 @@ func (g *game) isMainPhase() bool {
 
 func (g *game) getPlayerAction() Action {
     p := g.players[g.priorityPlayer]
+    if g.currentStep == declareAttackersStep && g.declarations == 0 {
+        return p.strategy.Attacks(p, g)
+    }
     return p.strategy.NextAction(p, g)
-}
-
-func (g *game) getActions(index int) []Action {
-	actions := []Action{passAction{action{controller: index}}}
-	if g.currentStep == declareAttackersStep && g.declarations == 0 {
-		return g.getAttacks(index)
-	}
-	p := g.getPlayer(index)
-	for card, _ := range p.hand {
-		if !g.canPlayCard(index, card) {
-			continue
-		}
-		actions = append(actions, g.getCardActions(card, index)...)
-	}
-	return actions
-}
-
-func (g *game) getAttacks(index int) []Action {
-	p := g.getPlayer(index)
-	// two player assumption
-	opp := (index + 1) % 2
-	creatures := []int{}
-	for i, c := range p.strategy.Attackers(p, g) {
-		if c.tapped || c.summoningSickness {
-			continue
-		}
-		creatures = append(creatures, i)
-	}
-	// TODO: first attempt, always attack with everything
-	attackers := []target{}
-	for _, c := range creatures {
-		attackers = append(attackers, target{index: c, target: opp})
-	}
-	return []Action{attackAction{action: action{controller: index}, attackers: attackers}}
-}
-
-func (g *game) getCardActions(card Card, controller int) []Action {
-	if card.getEffects() == nil {
-		return []Action{cardAction{card: card, action: action{controller: controller}}}
-	}
-	actions := []Action{}
-	targets := [][]target{}
-	for i, e := range card.getEffects() {
-		targets = append(targets, e.possibleTargets(i, controller, g))
-	}
-	// Multi-target combinatorics (TODO: with constraints such as no same target!)
-	if len(targets) == 0 {
-		return actions
-	}
-	oldArr := [][]target{}
-	for _, t := range targets[0] {
-		oldArr = append(oldArr, []target{t})
-	}
-	newArr := [][]target{}
-	for _, ta := range targets[1:] {
-		for _, t := range ta {
-			for _, ot := range oldArr {
-				newArr = append(newArr, append(ot, t))
-			}
-		}
-		oldArr = newArr
-		newArr = [][]target{}
-	}
-	for _, t := range oldArr {
-		action := cardAction{card: card, action: action{controller: controller}, targets: t}
-		actions = append(actions, action)
-	}
-	return actions
 }

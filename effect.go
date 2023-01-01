@@ -1,7 +1,9 @@
 package main
 
-// For permanent targets this might get hairy if they change
-// but players never change so this is simple
+// For permanent targets this might get hairy if their index changes (?)
+// but players never change so this is simpler
+// TODO: imagine targeting a creature by index, in response a creature with smaller
+// index is killed, if battlefield array is reordered this goes very wrong
 type Effect interface {
 	possibleTargets(effectIndex, controllingPlayer int, game *game) []target
 	getEffect() func(*player)
@@ -27,11 +29,6 @@ type selfEffect struct {
 
 type playerEffect struct {
 	effect
-}
-
-type target struct {
-	index  int
-	target int
 }
 
 func (e selfEffect) possibleTargets(effectIndex, controllingPlayer int, _ *game) []target {

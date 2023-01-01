@@ -4,7 +4,7 @@ package main
 
 type Strategy interface {
     NextAction(*player, *game) Action
-    Attackers(*player, *game) []cardInstance
+    Attacks(*player, *game) attackAction
 }
 
 // TODO: a simpler strategy hardcoding the simple deck we have
@@ -18,9 +18,6 @@ type simpleStrategy struct {}
 
 func (simpleStrategy) NextAction(p *player, g *game) Action {
     pIndex := g.priorityPlayer
-    if g.currentStep == declareAttackersStep && g.declarations == 0 {
-        return g.getAttacks(pIndex)[0]
-    }
     if g.currentStep != postcombatMainPhase {
         return passAction{action{controller: pIndex}}
     }
@@ -58,18 +55,18 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
     return passAction{action{controller: pIndex}}
 }
 
-func (simpleStrategy) Attackers(p *player, _ *game) []cardInstance {
-    return p.battlefield.creatures
+func (simpleStrategy) Attacks(p *player, g *game) attackAction {
+    pIndex := g.priorityPlayer
+    return attackWithAll(p, pIndex)
 }
 
-// legacy: minmax is probably not feasible to use
-type minmaxStrategy struct {}
-
-func (minmaxStrategy) NextAction(_ *player, g *game) Action {
-    return startMinimax(g)
-}
-
-// attack with everything that can attack
-func (minmaxStrategy) Attackers(p *player, _ *game) []cardInstance {
-    return p.battlefield.creatures
+func attackWithAll(p *player, index int) attackAction {
+    creatures := p.creaturesThatCanAttack()
+	// two player assumption
+	opp := (index + 1) % 2
+	attackers := []target{}
+	for _, c := range creatures {
+		attackers = append(attackers, target{index: c, target: opp})
+	}
+	return attackAction{action: action{controller: index}, attackers: attackers}
 }

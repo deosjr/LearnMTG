@@ -121,3 +121,14 @@ func newPlayer(name string, deckList unorderedCards) *player {
 		deckList:  deckList,
 	}
 }
+
+func (p *player) creaturesThatCanAttack() []int {
+	creatures := []int{}
+	for i, c := range p.battlefield.creatures {
+		if c.tapped || c.summoningSickness {
+			continue
+		}
+		creatures = append(creatures, i)
+	}
+    return creatures
+}
