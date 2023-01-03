@@ -7,6 +7,19 @@ type Strategy interface {
     Attacks(*player, *game) attackAction
 }
 
+// your goldfish can't play magic, so it always just passes
+type goldfish struct {}
+
+func (goldfish) NextAction(_ *player, g *game) Action {
+    pIndex := g.priorityPlayer
+    return passAction{action{controller: pIndex}}
+}
+
+func (goldfish) Attacks(_ *player, g *game) attackAction {
+    pIndex := g.priorityPlayer
+	return attackAction{action: action{controller: pIndex}, attackers: nil}
+}
+
 // TODO: a simpler strategy hardcoding the simple deck we have
 // never do anything first main phase.
 // always attack with everything, never block

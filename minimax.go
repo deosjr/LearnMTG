@@ -4,6 +4,9 @@ import (
 	"math"
 )
 
+// Minimax algorithm for Magic the Gathering
+// plies are turn segments where the player holds priority
+
 // legacy: minmax is probably not feasible to use
 type minmaxStrategy struct {}
 

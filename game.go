@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 )
 
 type step int
@@ -70,9 +69,7 @@ type game struct {
 	numAttackers int
 }
 
-func newGame(players ...*player) *game {
-	numPlayers := len(players)
-	startingPlayer := rand.Intn(numPlayers)
+func newGame(startingPlayer int, players ...*player) *game {
 	fmt.Printf("Starting player: %s\n", players[startingPlayer].name)
 	for _, p := range players {
 		p.drawN(7)
@@ -84,16 +81,22 @@ func newGame(players ...*player) *game {
 		activePlayer:   startingPlayer,
 		priorityPlayer: startingPlayer,
 		startingPlayer: startingPlayer,
-		numPlayers:     numPlayers,
+		numPlayers:     len(players),
 	}
 	g.nextDecisionPoint()
 	return g
 }
 
+// getPlayerAction -> resolveAction -> check gameEnds -> repeat
+// rest is debugging print statements
 func (g *game) loop() {
 	for {
-		g.debug()
 		a := g.getPlayerAction()
+        if _, ok := a.(passAction); !ok {
+            if at, ok := a.(attackAction); !ok || len(at.attackers) > 0 {
+                g.debug()
+            }
+        }
 		var ac cardAction
 		var stacklength int
 		if len(g.stack) != 0 {
@@ -264,6 +267,7 @@ func (g *game) untapStep() {
 	activePlayer := g.getActivePlayer()
 	activePlayer.manaAvailable = activePlayer.manaTotal
 	for i, c := range activePlayer.battlefield.creatures {
+        // TODO: edgecase: flash in creature start of turn
 		c.summoningSickness = false
 		c.tapped = false
 		activePlayer.battlefield.creatures[i] = c

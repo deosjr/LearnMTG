@@ -68,6 +68,7 @@ func (p *player) copy() *player {
 		newP.hand[k] = v
 	}
 	newP.battlefield = p.battlefield.copy()
+    // TODO: deep copy strategy once you keep state on it
 	return newP
 }
 

@@ -5,9 +5,6 @@ import (
 	"time"
 )
 
-// Minimax algorithm for Magic the Gathering
-// plies are turn segments where the player holds priority
-
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -16,6 +13,8 @@ func main() {
     p1.strategy = simpleStrategy{}
     p2.strategy = minmaxStrategy{}
 
-	game := newGame(p1, p2)
+	startingPlayer := rand.Intn(2)
+
+	game := newGame(startingPlayer, p1, p2)
 	game.loop()
 }
