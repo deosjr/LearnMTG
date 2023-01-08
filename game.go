@@ -388,14 +388,7 @@ func (g *game) resolve() {
 	}
 	a := g.stack[len(g.stack)-1]
 	g.stack = g.stack[:len(g.stack)-1]
-
-	p := g.getPlayer(a.controller)
-	a.card.resolve(p)
-
-	// card specific effects
-	for _, t := range a.targets {
-		a.card.apply(g, t)
-	}
+	a.card.resolve(g, a)
 }
 
 func (g *game) declareAttackers(a attackAction) {
@@ -419,4 +412,11 @@ func (g *game) getPlayerAction() Action {
         return p.strategy.Attacks(p, g)
     }
     return p.strategy.NextAction(p, g)
+}
+
+func (g *game) apply(e Effect, a cardAction) {
+	f := e.getEffect()
+    for _, t := range a.targets {
+	    f(g.getPlayer(t.target))
+    }
 }

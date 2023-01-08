@@ -31,7 +31,7 @@ func TestPossibleTargets(t *testing.T) {
 			want:       []target{{target: SELF}, {target: OPP}},
 		},
 	} {
-		got := tt.effect.possibleTargets(0, tt.controller, tt.game)
+		got := tt.effect.possibleTargets(tt.controller, tt.game)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
 		}
@@ -58,8 +58,9 @@ func TestApplySelfEffect(t *testing.T) {
 			want: player{lifeTotal: 4},
 		},
 	} {
-		c := card{effects: []Effect{selfEffect{effect: effect{effect: tt.effect}}}}
-		c.apply(tt.game, tt.target)
+		spellAbility := selfEffect{effect: effect{effect: tt.effect}}
+        action := cardAction{action: action{controller: SELF}, targets: []target{tt.target}}
+        tt.game.apply(spellAbility, action)
 		got := *tt.game.getPlayer(tt.target.target)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
@@ -99,8 +100,9 @@ func TestApplyPlayerEffect(t *testing.T) {
 			want: player{lifeTotal: 1},
 		},
 	} {
-		c := card{effects: []Effect{playerEffect{effect: effect{effect: tt.effect}}}}
-		c.apply(tt.game, tt.target)
+		spellAbility := playerEffect{effect: effect{effect: tt.effect}}
+        action := cardAction{action: action{controller: SELF}, targets: []target{tt.target}}
+        tt.game.apply(spellAbility, action)
 		got := *tt.game.getPlayer(tt.target.target)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)

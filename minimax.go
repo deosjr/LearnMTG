@@ -125,7 +125,14 @@ func (g *game) getActions(index int) []Action {
 		if !g.canPlayCard(index, card) {
 			continue
 		}
-		actions = append(actions, g.getCardActions(card, index)...)
+        switch c := card.(type) {
+        case *sorcery:
+            for _, t := range g.getTargets(c.spellAbility, index) {
+		        actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: t})
+            }
+        default:
+            actions = append(actions, cardAction{card: card, action: action{controller: index}})
+        }
 	}
 	return actions
 }
@@ -137,18 +144,11 @@ func (g *game) getAttacks(index int) []Action {
     return []Action{attackWithAll(p, index)}
 }
 
-func (g *game) getCardActions(card Card, controller int) []Action {
-	if card.getEffects() == nil {
-		return []Action{cardAction{card: card, action: action{controller: controller}}}
-	}
-	actions := []Action{}
-	targets := [][]target{}
-	for i, e := range card.getEffects() {
-		targets = append(targets, e.possibleTargets(i, controller, g))
-	}
+func (g *game) getTargets(e Effect, controller int) [][]target {
+    targets := [][]target{e.possibleTargets(controller, g)}
 	// Multi-target combinatorics (TODO: with constraints such as no same target!)
 	if len(targets) == 0 {
-		return actions
+		return nil
 	}
 	oldArr := [][]target{}
 	for _, t := range targets[0] {
@@ -164,9 +164,5 @@ func (g *game) getCardActions(card Card, controller int) []Action {
 		oldArr = newArr
 		newArr = [][]target{}
 	}
-	for _, t := range oldArr {
-		action := cardAction{card: card, action: action{controller: controller}, targets: t}
-		actions = append(actions, action)
-	}
-	return actions
+    return oldArr
 }

@@ -20,6 +20,8 @@ type passAction struct {
 type cardAction struct {
 	action
 	card    Card
+    // targets: used for casting spells with a target
+    // i.e. instants and sorceries with spell abilities
     // index:  in card.effects
     // target: depends on effect type(?)
 	targets []target
@@ -42,4 +44,3 @@ type target struct {
 	index  int
 	target int
 }
-

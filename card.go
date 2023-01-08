@@ -10,49 +10,6 @@ import (
 type unorderedCards map[Card]int // card : amount
 type orderedCards []Card         // card
 
-var (
-	mountain = &land{
-		card: card{
-			name: "Mountain",
-		},
-	}
-
-	lavaSpike = &sorcery{
-		card: card{
-			name:     "Lava Spike",
-			manaCost: manaCost{r: 1},
-			effects: []Effect{
-				playerEffect{
-					effect: effect{func(p *player) {
-						p.lifeTotal -= 3
-					}},
-				},
-			},
-		},
-	}
-
-	falkenrathReaver = &creature{
-		card: card{
-			name:     "Falkenrath Reaver",
-			manaCost: manaCost{c: 1, r: 1},
-		},
-		power:     2,
-		toughness: 2,
-	}
-
-	cards = map[string]Card{
-		mountain.name:         mountain,
-		lavaSpike.name:        lavaSpike,
-		falkenrathReaver.name: falkenrathReaver,
-	}
-
-	deckList = unorderedCards{
-		mountain:         10,
-		lavaSpike:        10,
-		falkenrathReaver: 10,
-	}
-)
-
 // sorcery/instant goes to graveyard from stack
 // permanents enter the battlefield (unless countered ofc)
 // NOTE: on effect -> go on stack (except lands)
@@ -60,19 +17,16 @@ var (
 // and card specific (resolve sorcery/instant effect, see game.resolve)
 type Card interface {
 	prereq(*game, int) bool
-	resolve(p *player)
+	resolve(g *game, a cardAction)
 	getName() string
 	getManaCost() manaCost
 	getPrereqs() []prerequisiteFunc
-	getEffects() []Effect
-	apply(g *game, t target)
 }
 
 type card struct {
-	name     string
-	manaCost manaCost
-	prereqs  []prerequisiteFunc
-	effects  []Effect
+	name       string
+	manaCost   manaCost
+	prereqs    []prerequisiteFunc
 }
 
 type manaCost struct {
@@ -97,19 +51,18 @@ func (c card) getPrereqs() []prerequisiteFunc {
 	return c.prereqs
 }
 
-func (c card) getEffects() []Effect {
-	return c.effects
-}
-
 type sorcery struct {
 	card
+    spellAbility Effect
 }
 
 func (s *sorcery) prereq(g *game, pindex int) bool {
 	return sorcerySpeed(g, pindex)
 }
 
-func (s *sorcery) resolve(p *player) {
+func (s *sorcery) resolve(g *game, a cardAction) {
+	p := g.getPlayer(a.controller)
+    g.apply(s.spellAbility, a)
 	p.graveyard = append(p.graveyard, s)
 }
 
@@ -125,7 +78,8 @@ func (l *land) prereq(g *game, pindex int) bool {
 	return !p.landPlayed
 }
 
-func (l *land) resolve(p *player) {
+func (l *land) resolve(g *game, a cardAction) {
+	p := g.getPlayer(a.controller)
 	p.landPlayed = true
 	p.manaTotal += 1
 	p.manaAvailable += 1
@@ -142,7 +96,8 @@ func (c *creature) prereq(g *game, pindex int) bool {
 	return sorcerySpeed(g, pindex)
 }
 
-func (c *creature) resolve(p *player) {
+func (c *creature) resolve(g *game, a cardAction) {
+	p := g.getPlayer(a.controller)
 	instance := cardInstance{
 		card:              c,
 		attacking:         -1,
