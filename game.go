@@ -110,13 +110,13 @@ func (g *game) loop() {
 			if len(g.stack) < stacklength {
 				// ac resolved
 				for _, target := range ac.targets {
-					fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(target.target).name)
+					fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(int(target)).name)
 				}
 			}
 		case cardAction:
 			fmt.Printf("-> %s plays %s", g.getPlayer(at.controller).name, at.card.getName())
 			if len(at.targets) > 0 {
-				fmt.Printf(" targeting %s", g.getPlayer(at.targets[0].target).name)
+				fmt.Printf(" targeting %s", g.getPlayer(int(at.targets[0])).name)
 			}
 			fmt.Println()
 		case attackAction:
@@ -412,11 +412,4 @@ func (g *game) getPlayerAction() Action {
         return p.strategy.Attacks(p, g)
     }
     return p.strategy.NextAction(p, g)
-}
-
-func (g *game) apply(e Effect, a cardAction) {
-	f := e.getEffect()
-    for _, t := range a.targets {
-	    f(g.getPlayer(t.target))
-    }
 }

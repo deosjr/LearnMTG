@@ -8,6 +8,8 @@ type action struct {
 	controller int
 }
 
+type target int
+
 func (a action) getController() int {
 	return a.controller
 }
@@ -22,8 +24,7 @@ type cardAction struct {
 	card    Card
     // targets: used for casting spells with a target
     // i.e. instants and sorceries with spell abilities
-    // index:  in card.effects
-    // target: depends on effect type(?)
+    // index: in relevant zone(s), as per ability target type(s)
 	targets []target
 }
 
@@ -31,16 +32,17 @@ type attackAction struct {
 	action
     // index:  in controller.battlefield
     // target: in game.players
-	attackers []target
+	attackers []combattarget
 }
 
 type blockAction struct {
 	action
-    // TODO: array of blocker/attacker pairs ?
+    // index:  in controller.battlefield
+    // target: in activeplayer.battlefield
+    blockers []combattarget
 }
 
-// NOTE: the target struct is reused for multiple purposes right now
-type target struct {
+type combattarget struct {
 	index  int
 	target int
 }

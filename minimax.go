@@ -79,13 +79,13 @@ func (n node) getChild(action Action) node {
 }
 
 func (n node) getActionsSelf() []Action {
-	return n.game.getActions(n.pointOfView)
+	return getActions(n.game, n.pointOfView)
 }
 
 func (n node) getActionsOpponent() []Action {
 	// again, two player game assumption for now
 	oppIndex := (n.pointOfView + 1) % 2
-	return n.game.getActions(oppIndex)
+	return getActions(n.game, oppIndex)
 }
 
 // use an arbitrarily large number because I
@@ -115,10 +115,10 @@ func (n node) isTerminal() bool {
 	return n.game.checkStateBasedActions()
 }
 
-func (g *game) getActions(index int) []Action {
+func getActions(g *game, index int) []Action {
 	actions := []Action{passAction{action{controller: index}}}
 	if g.currentStep == declareAttackersStep && g.declarations == 0 {
-		return g.getAttacks(index)
+		return getAttacks(g, index)
 	}
 	p := g.getPlayer(index)
 	for card, _ := range p.hand {
@@ -127,7 +127,7 @@ func (g *game) getActions(index int) []Action {
 		}
         switch c := card.(type) {
         case *sorcery:
-            for _, t := range g.getTargets(c.spellAbility, index) {
+            for _, t := range getTargets(g, c.spellAbility, index) {
 		        actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: t})
             }
         default:
@@ -137,15 +137,30 @@ func (g *game) getActions(index int) []Action {
 	return actions
 }
 
-func (g *game) getAttacks(index int) []Action {
+func getAttacks(g *game, index int) []Action {
 	// TODO: first attempt, always attack with everything
     // for minimax, this should return the superset of attackers instead
     p := g.getPlayer(index)
     return []Action{attackWithAll(p, index)}
 }
 
-func (g *game) getTargets(e Effect, controller int) [][]target {
-    targets := [][]target{e.possibleTargets(controller, g)}
+func possibleTargets(g *game, t targettype, controller int) []target {
+    switch t {
+    case selfTarget:
+        return []target{ target(controller) }
+    case playerTarget:
+        ts := []target{}
+        for i:=0; i < g.numPlayers; i++ {
+            ts = append(ts, target(i))
+        }
+        return ts
+    }
+    return nil
+}
+
+func getTargets(g *game, a Ability, controller int) [][]target {
+    // TODO: multiple targets
+    targets := [][]target{possibleTargets(g, a.getTargets()[0], controller)}
 	// Multi-target combinatorics (TODO: with constraints such as no same target!)
 	if len(targets) == 0 {
 		return nil

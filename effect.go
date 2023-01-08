@@ -5,41 +5,26 @@ package main
 // TODO: imagine targeting a creature by index, in response a creature with smaller
 // index is killed, if battlefield array is reordered this goes very wrong
 type Effect interface {
-	possibleTargets(controllingPlayer int, game *game) []target
-	getEffect() func(*player)
+	apply(g *game, targets []target)
 }
 
-type effect struct {
-	effect func(*player)
+type damage struct {
+    amount int
 }
 
-func (e effect) getEffect() func(*player) {
-	return e.effect
+func (e damage) apply(g *game, targets []target) {
+    // TODO: assumed player targets atm
+    for _, p := range targets {
+        g.getPlayer(int(p)).lifeTotal -= e.amount
+    }
 }
 
-type selfEffect struct {
-	effect
+type lifegain struct {
+    amount int
 }
 
-type playerEffect struct {
-	effect
-}
-
-func (e selfEffect) possibleTargets(controllingPlayer int, _ *game) []target {
-	return []target{
-		target{
-			target: controllingPlayer,
-		},
-	}
-}
-
-func (e playerEffect) possibleTargets(_ int, game *game) []target {
-	effects := []target{}
-	for i := 0; i < game.numPlayers; i++ {
-		pe := target{
-			target: i,
-		}
-		effects = append(effects, pe)
-	}
-	return effects
+func (e lifegain) apply(g *game, targets []target) {
+    for _, p := range targets {
+        g.getPlayer(int(p)).lifeTotal += e.amount
+    }
 }

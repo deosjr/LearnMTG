@@ -7,6 +7,39 @@ import (
 	"testing"
 )
 
+func TestPossibleTargets(t *testing.T) {
+	for i, tt := range []struct {
+        target     targettype
+		controller int
+		game       *game
+		want       []target
+	}{
+		{
+			target:     selfTarget,
+			controller: SELF,
+			game:       &game{numPlayers: 2},
+			want:       []target{target(SELF)},
+		},
+		{
+			target:     playerTarget,
+			controller: SELF,
+			game:       &game{numPlayers: 2},
+			want:       []target{target(SELF), target(OPP)},
+		},
+		{
+			target:     playerTarget,
+			controller: OPP,
+			game:       &game{numPlayers: 2},
+			want:       []target{target(SELF), target(OPP)},
+		},
+	} {
+		got := possibleTargets(tt.game, tt.target, tt.controller)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%d) got %v want %v", i, got, tt.want)
+		}
+	}
+}
+
 func TestGetChild(t *testing.T) {
 	for i, tt := range []struct {
 		node   node
@@ -97,9 +130,7 @@ func TestGetPlayerAction(t *testing.T) {
 			want: cardAction{
 				card:   lavaSpike,
 				action: action{controller: SELF},
-				targets: []target{
-					{target: OPP},
-				},
+				targets: []target{ target(OPP) },
 			},
 		},
 		{
@@ -128,9 +159,7 @@ func TestGetPlayerAction(t *testing.T) {
 			want: cardAction{
 				card:   lavaSpike,
 				action: action{controller: OPP},
-				targets: []target{
-					{target: SELF},
-				},
+				targets: []target{ target(SELF) },
 			},
 		},
 	} {
@@ -221,16 +250,12 @@ func TestGetActions(t *testing.T) {
 				cardAction{
 					card:   lavaSpike,
 					action: action{controller: SELF},
-					targets: []target{
-						{target: SELF},
-					},
+					targets: []target{ target(SELF) },
 				},
 				cardAction{
 					card:   lavaSpike,
 					action: action{controller: SELF},
-					targets: []target{
-						{target: OPP},
-					},
+					targets: []target{ target(OPP) },
 				},
 				cardAction{card: mountain, action: action{controller: SELF}},
 				passAction{action{controller: SELF}},
@@ -328,16 +353,12 @@ func TestGetActions(t *testing.T) {
 				cardAction{
 					card:   lavaSpike,
 					action: action{controller: OPP},
-					targets: []target{
-						{target: OPP},
-					},
+					targets: []target{ target(OPP) },
 				},
 				cardAction{
 					card:   lavaSpike,
 					action: action{controller: OPP},
-					targets: []target{
-						{target: SELF},
-					},
+					targets: []target{ target(SELF) },
 				},
 				cardAction{card: mountain, action: action{controller: OPP}},
 				passAction{action{controller: OPP}},
@@ -365,7 +386,7 @@ func TestGetActions(t *testing.T) {
 		},
 	} {
 		tt.game.numPlayers = 2
-		got := tt.game.getActions(tt.game.priorityPlayer)
+		got := getActions(tt.game, tt.game.priorityPlayer)
 		sort.Slice(got, func(i, j int) bool {
 			return fmt.Sprintf("%v", got[i]) < fmt.Sprintf("%v", got[j])
 		})

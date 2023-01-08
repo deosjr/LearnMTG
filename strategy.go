@@ -63,7 +63,7 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         if !g.canPlayCard(pIndex, c) {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}, targets: []target{{index:0, target:(pIndex+1)%2}}}
+        return cardAction{card: c, action: action{controller: pIndex}, targets: []target{target((pIndex+1)%2)}}
     }
     return passAction{action{controller: pIndex}}
 }
@@ -77,9 +77,9 @@ func attackWithAll(p *player, index int) attackAction {
     creatures := p.creaturesThatCanAttack()
 	// two player assumption
 	opp := (index + 1) % 2
-	attackers := []target{}
+	attackers := []combattarget{}
 	for _, c := range creatures {
-		attackers = append(attackers, target{index: c, target: opp})
+		attackers = append(attackers, combattarget{index: c, target: opp})
 	}
 	return attackAction{action: action{controller: index}, attackers: attackers}
 }

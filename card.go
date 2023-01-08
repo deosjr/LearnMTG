@@ -53,7 +53,7 @@ func (c card) getPrereqs() []prerequisiteFunc {
 
 type sorcery struct {
 	card
-    spellAbility Effect
+    spellAbility SpellAbility
 }
 
 func (s *sorcery) prereq(g *game, pindex int) bool {
@@ -62,7 +62,8 @@ func (s *sorcery) prereq(g *game, pindex int) bool {
 
 func (s *sorcery) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
-    g.apply(s.spellAbility, a)
+    f := s.spellAbility.getEffect()
+    f.apply(g, a.targets)
 	p.graveyard = append(p.graveyard, s)
 }
 

@@ -12,10 +12,11 @@ var (
 			name:     "Lava Spike",
 			manaCost: manaCost{r: 1},
 		},
-        spellAbility: playerEffect{
-		    effect: effect{func(p *player) {
-				p.lifeTotal -= 3
-			}},
+        spellAbility: SpellAbility{
+            ability{
+                targets: []targettype{playerTarget},
+                effect:  damage{3},
+            },
         },
 	}
 
