@@ -63,7 +63,23 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         if !g.canPlayCard(pIndex, c) {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}, targets: []target{target((pIndex+1)%2)}}
+        return cardAction{card: c, action: action{controller: pIndex}, targets: []effectTarget{{index:target((pIndex+1)%2),ttype:targetPlayer}}}
+    }
+    for c := range p.hand {
+        s, ok := c.(*sorcery)
+        if !ok {
+            continue
+        }
+        if s.name != "Flame Rift" {
+            continue
+        }
+        if !g.canPlayCard(pIndex, c) {
+            continue
+        }
+        if p.lifeTotal <= 4 || p.lifeTotal < g.getOpponent(pIndex).lifeTotal {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: pIndex}, targets: []effectTarget{{ttype:eachPlayer}}}
     }
     return passAction{action{controller: pIndex}}
 }
@@ -77,9 +93,9 @@ func attackWithAll(p *player, index int) attackAction {
     creatures := p.creaturesThatCanAttack()
 	// two player assumption
 	opp := (index + 1) % 2
-	attackers := []combattarget{}
+	attackers := []combatTarget{}
 	for _, c := range creatures {
-		attackers = append(attackers, combattarget{index: c, target: opp})
+		attackers = append(attackers, combatTarget{index: c, target: opp})
 	}
 	return attackAction{action: action{controller: index}, attackers: attackers}
 }

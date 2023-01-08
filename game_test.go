@@ -59,7 +59,7 @@ func TestResolveAction(t *testing.T) {
 			action: cardAction{
 				card:   lavaSpike,
 				action: action{controller: SELF},
-				targets: []target{ target(OPP) },
+				targets: []effectTarget{ {index:target(OPP), ttype: targetPlayer} },
 			},
 			want: &game{
 				players: []*player{
@@ -76,7 +76,7 @@ func TestResolveAction(t *testing.T) {
 					cardAction{
 						card:   lavaSpike,
 						action: action{controller: SELF},
-						targets: []target{ target(OPP) },
+				        targets: []effectTarget{ {index:target(OPP), ttype: targetPlayer} },
 					},
 				},
 			},
@@ -141,7 +141,7 @@ func TestResolveVSGoldfish(t *testing.T) {
 			actions: []Action{cardAction{
 				    card:   lavaSpike,
 				    action: action{controller: SELF},
-				    targets: []target{ target(OPP) },
+				    targets: []effectTarget{ {index:target(OPP), ttype: targetPlayer} },
                 },
                 passAction{action{controller: SELF}},
 			},

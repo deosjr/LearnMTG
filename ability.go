@@ -8,16 +8,16 @@ package main
 // Keyword abilities are simply shortcuts for one of the above
 
 type Ability interface {
-    getTargets() []targettype
+    getTargets() []targetType
     getEffect() Effect
 }
 
 type ability struct {
-    targets []targettype
+    targets []targetType
     effect Effect
 }
 
-func (a ability) getTargets() []targettype {
+func (a ability) getTargets() []targetType {
     return a.targets
 }
 
@@ -44,9 +44,18 @@ type StaticAbility struct {
     // ???
 }
 
-type targettype int
+type targetType int
 
 const (
-    selfTarget targettype = iota
-    playerTarget
+    you targetType = iota
+    targetPlayer
+    eachPlayer
 )
+
+func (t targetType) isPlayer() bool {
+    return t == you || t == targetPlayer || t == eachPlayer
+}
+
+func (t targetType) isUntargeted() bool {
+    return t == you || t == eachPlayer
+}

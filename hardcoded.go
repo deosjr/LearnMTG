@@ -14,11 +14,24 @@ var (
 		},
         spellAbility: SpellAbility{
             ability{
-                targets: []targettype{playerTarget},
+                targets: []targetType{targetPlayer},
                 effect:  damage{3},
             },
         },
 	}
+
+    flameRift = &sorcery{
+        card: card{
+            name:     "Flame Rift",
+            manaCost: manaCost{c: 1, r: 1},
+        },
+        spellAbility: SpellAbility{
+            ability{
+                targets: []targetType{eachPlayer},
+                effect:  damage{4},
+            },
+        },
+    }
 
 	falkenrathReaver = &creature{
 		card: card{
@@ -32,13 +45,15 @@ var (
 	cards = map[string]Card{
 		mountain.name:         mountain,
 		lavaSpike.name:        lavaSpike,
+        flameRift.name:        flameRift,
 		falkenrathReaver.name: falkenrathReaver,
 	}
 
 	deckList = unorderedCards{
-		mountain:         10,
-		lavaSpike:        10,
-		falkenrathReaver: 10,
+		mountain:         12,
+		lavaSpike:        9,
+        flameRift:        3,
+		falkenrathReaver: 6,
 	}
 )
 

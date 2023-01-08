@@ -5,17 +5,23 @@ package main
 // TODO: imagine targeting a creature by index, in response a creature with smaller
 // index is killed, if battlefield array is reordered this goes very wrong
 type Effect interface {
-	apply(g *game, targets []target)
+	apply(g *game, targets []effectTarget)
 }
 
 type damage struct {
     amount int
 }
 
-func (e damage) apply(g *game, targets []target) {
-    // TODO: assumed player targets atm
-    for _, p := range targets {
-        g.getPlayer(int(p)).lifeTotal -= e.amount
+func (e damage) apply(g *game, targets []effectTarget) {
+    for _, t := range targets {
+        switch t.ttype {
+        case you, targetPlayer:
+            g.getPlayer(int(t.index)).lifeTotal -= e.amount
+        case eachPlayer:
+            for _, p := range g.players {
+                p.lifeTotal -= e.amount
+            }
+        }
     }
 }
 
@@ -23,8 +29,11 @@ type lifegain struct {
     amount int
 }
 
-func (e lifegain) apply(g *game, targets []target) {
-    for _, p := range targets {
-        g.getPlayer(int(p)).lifeTotal += e.amount
+func (e lifegain) apply(g *game, targets []effectTarget) {
+    for _, t := range targets {
+        if !t.ttype.isPlayer() {
+            panic("wrong target type")
+        }
+        g.getPlayer(int(t.index)).lifeTotal += e.amount
     }
 }

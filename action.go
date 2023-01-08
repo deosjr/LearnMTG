@@ -25,24 +25,29 @@ type cardAction struct {
     // targets: used for casting spells with a target
     // i.e. instants and sorceries with spell abilities
     // index: in relevant zone(s), as per ability target type(s)
-	targets []target
+	targets []effectTarget
+}
+
+type effectTarget struct {
+    index target
+    ttype targetType
 }
 
 type attackAction struct {
 	action
     // index:  in controller.battlefield
     // target: in game.players
-	attackers []combattarget
+	attackers []combatTarget
 }
 
 type blockAction struct {
 	action
     // index:  in controller.battlefield
     // target: in activeplayer.battlefield
-    blockers []combattarget
+    blockers []combatTarget
 }
 
-type combattarget struct {
+type combatTarget struct {
 	index  int
 	target int
 }

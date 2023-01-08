@@ -110,13 +110,17 @@ func (g *game) loop() {
 			if len(g.stack) < stacklength {
 				// ac resolved
 				for _, target := range ac.targets {
-					fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(int(target)).name)
+                    if target.ttype.isUntargeted() {
+					    fmt.Printf("%s resolves by %s \n", ac.card.getName(), g.getPlayer(ac.controller).name)
+                    } else {
+					    fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(int(target.index)).name)
+                    }
 				}
 			}
 		case cardAction:
 			fmt.Printf("-> %s plays %s", g.getPlayer(at.controller).name, at.card.getName())
 			if len(at.targets) > 0 {
-				fmt.Printf(" targeting %s", g.getPlayer(int(at.targets[0])).name)
+				fmt.Printf(" targeting %s", g.getPlayer(int(at.targets[0].index)).name)
 			}
 			fmt.Println()
 		case attackAction:
