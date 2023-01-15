@@ -11,14 +11,12 @@ type Strategy interface {
 // your goldfish can't play magic, so it always just passes
 type goldfish struct {}
 
-func (goldfish) NextAction(_ *player, g *game) Action {
-    pIndex := g.priorityPlayer
-    return passAction{action{controller: pIndex}}
+func (goldfish) NextAction(p *player, g *game) Action {
+    return passAction{action{controller: p.idx}}
 }
 
-func (goldfish) Attacks(_ *player, g *game) attackAction {
-    pIndex := g.priorityPlayer
-	return attackAction{action: action{controller: pIndex}, attackers: nil}
+func (goldfish) Attacks(p *player, g *game) attackAction {
+	return attackAction{action: action{controller: p.idx}, attackers: nil}
 }
 
 func (goldfish) PayManaCost(p *player, cost mana) {
@@ -35,27 +33,26 @@ func (goldfish) PayManaCost(p *player, cost mana) {
 type simpleStrategy struct {}
 
 func (simpleStrategy) NextAction(p *player, g *game) Action {
-    pIndex := g.priorityPlayer
     if g.currentStep != postcombatMainPhase {
-        return passAction{action{controller: pIndex}}
+        return passAction{action{controller: p.idx}}
     }
     for c := range p.hand {
         if _, ok := c.(*land); !ok {
             continue
         }
-        if !g.canPlayCard(pIndex, c) {
+        if !p.canPlayCard(g, c) {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}}
+        return cardAction{card: c, action: action{controller: p.idx}}
     }
     for c := range p.hand {
         if _, ok := c.(*creature); !ok {
             continue
         }
-        if !g.canPlayCard(pIndex, c) {
+        if !p.canPlayCard(g, c) {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}}
+        return cardAction{card: c, action: action{controller: p.idx}}
     }
     for c := range p.hand {
         s, ok := c.(*sorcery)
@@ -65,10 +62,10 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         if s.name != "Lava Spike" {
             continue
         }
-        if !g.canPlayCard(pIndex, c) {
+        if !p.canPlayCard(g, c) {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}, targets: []effectTarget{{index:target((pIndex+1)%2),ttype:targetPlayer}}}
+        return cardAction{card: c, action: action{controller: p.idx}, targets: []effectTarget{{index:target((p.idx+1)%2),ttype:targetPlayer}}}
     }
     for c := range p.hand {
         s, ok := c.(*sorcery)
@@ -78,20 +75,19 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         if s.name != "Flame Rift" {
             continue
         }
-        if !g.canPlayCard(pIndex, c) {
+        if !p.canPlayCard(g, c) {
             continue
         }
-        if p.lifeTotal <= 4 || p.lifeTotal < g.getOpponent(pIndex).lifeTotal {
+        if p.lifeTotal <= 4 || p.lifeTotal < g.getOpponent(p.idx).lifeTotal {
             continue
         }
-        return cardAction{card: c, action: action{controller: pIndex}, targets: []effectTarget{{ttype:eachPlayer}}}
+        return cardAction{card: c, action: action{controller: p.idx}, targets: []effectTarget{{ttype:eachPlayer}}}
     }
-    return passAction{action{controller: pIndex}}
+    return passAction{action{controller: p.idx}}
 }
 
 func (simpleStrategy) Attacks(p *player, g *game) attackAction {
-    pIndex := g.priorityPlayer
-    return attackWithAll(p, pIndex)
+    return attackWithAll(p, p.idx)
 }
 
 func (simpleStrategy) PayManaCost(p *player, cost mana) {
@@ -120,7 +116,13 @@ func payNaive(p *player, cost mana) {
             continue
         }
         // TODO: assume land only has one activated ability
-        //a := l.card.getActivatedAbilities()[0]
+        // and that is a mana ability
+        a := l.card.getActivatedAbilities()[0]
+        if !a.isManaAbility() {
+            panic("broken assumption on land abilities")
+        }
+        // TODO: find/pay colored mana first, then spend rest to pay colorless
+        //m := a.getEffect().(addMana).amount
         l.tapped = true
         p.battlefield.lands[i] = l
         needed--

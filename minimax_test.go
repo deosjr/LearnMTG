@@ -138,18 +138,20 @@ func TestGetPlayerAction(t *testing.T) {
 			game: &game{
 				players: []*player{
 					SELF: &player{
+                        idx: SELF,
 						lifeTotal: 3,
 						library:   []Card{mountain},
                         strategy:   minmaxStrategy{},
 					},
 					OPP: &player{
+                        idx: OPP,
 						hand: map[Card]int{
 							mountain:  1,
 							lavaSpike: 1,
 						},
                         battlefield: testManaAvailable(1),
-						lifeTotal:     20,
-                        strategy:   minmaxStrategy{},
+						lifeTotal:   20,
+                        strategy:    minmaxStrategy{},
 					},
 				},
 				priorityPlayer: OPP,
@@ -306,8 +308,9 @@ func TestGetActions(t *testing.T) {
 			name: "opp no mana",
 			game: &game{
 				players: []*player{
-					SELF: &player{},
+					SELF: &player{idx:SELF},
 					OPP: &player{
+                        idx: OPP,
 						hand: map[Card]int{
 							mountain:  2,
 							lavaSpike: 3,
@@ -332,8 +335,9 @@ func TestGetActions(t *testing.T) {
 			name: "opp all the options",
 			game: &game{
 				players: []*player{
-					SELF: &player{},
+					SELF: &player{idx:SELF},
 					OPP: &player{
+                        idx: OPP,
 						hand: map[Card]int{
 							mountain:  2,
 							lavaSpike: 3,

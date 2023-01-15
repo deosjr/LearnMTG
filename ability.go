@@ -43,7 +43,8 @@ func (aa ActivatedAbility) isManaAbility() bool {
         return true
     }
     noTarget := len(aa.targets) == 1 && aa.targets[0].isUntargeted()
-    return noTarget // && addsMana && noLoyalty
+    _, addsMana := aa.getEffect().(addMana)
+    return noTarget && addsMana // && noLoyalty
 }
 
 type TriggeredAbility struct {

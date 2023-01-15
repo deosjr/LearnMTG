@@ -133,7 +133,7 @@ func getActions(g *game, index int) []Action {
 	}
 	p := g.getPlayer(index)
 	for card, _ := range p.hand {
-		if !g.canPlayCard(index, card) {
+		if !p.canPlayCard(g, card) {
 			continue
 		}
         switch c := card.(type) {

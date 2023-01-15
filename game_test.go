@@ -237,3 +237,36 @@ func TestResolveVSGoldfish(t *testing.T) {
 		}
 	}
 }
+
+func TestPlayerHasMana(t *testing.T) {
+	for i, tt := range []struct {
+        player *player
+        mana   mana
+		want   bool
+	}{
+        {
+            player: &player{},
+            mana:   mana{r:1},
+            want:   false,
+        },
+        {
+            player: &player{
+                battlefield: testManaAvailable(1),
+            },
+            mana:   mana{r:1},
+            want:   true,
+        },
+        {
+            player: &player{
+                battlefield: testManaAvailable(2),
+            },
+            mana:   mana{c:1, r:1},
+            want:   true,
+        },
+    }{
+        got := tt.player.hasMana(tt.mana)
+        if got != tt.want {
+			t.Errorf("%d) got %#v want %#v", i, got, tt.want)
+        }
+    }
+}

@@ -8,8 +8,8 @@ import (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	p1 := newPlayer("player1", deckList)
-	p2 := newPlayer("player2", deckList)
+	p1 := newPlayer(0, "player1", deckList)
+	p2 := newPlayer(1, "player2", deckList)
     p1.strategy = simpleStrategy{}
     p2.strategy = minmaxStrategy{}
 

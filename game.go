@@ -302,30 +302,6 @@ func (g *game) endOfCombatStep() {
 	g.numAttackers = 0
 }
 
-// this means we only check prereqs against what we know
-// may have to change that to a probability prereq is met
-func (g *game) canPlayCard(pindex int, card Card) bool {
-	// prerequisites given by card type
-	if !card.prereq(g, pindex) {
-		return false
-	}
-
-	p := g.getPlayer(pindex)
-	// can player pay for the card?
-	if !p.hasMana(card.getManaCost()) {
-		return false
-	}
-	// other prerequisites such as paying life
-	// NOTE: prereq is target available?
-	// --> this is handled by possibleTargets returning 0 actions
-	for _, prereq := range card.getPrereqs() {
-		if !prereq(p) {
-			return false
-		}
-	}
-	return true
-}
-
 func (g *game) nextStep() {
 	g.declarations = 0
 	g.currentStep = (g.currentStep + 1) % numSteps

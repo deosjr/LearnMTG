@@ -46,6 +46,34 @@ func (m mana) add(n mana) mana {
     return mana{c: m.c+n.c, w:m.w+n.w, u:m.u+n.u, b:m.b+n.b, r:m.r+n.r, g:m.g+n.g}
 }
 
+func (m mana) sub(n mana) mana {
+    return mana{c: m.c-n.c, w:m.w-n.w, u:m.u-n.u, b:m.b-n.b, r:m.r-n.r, g:m.g-n.g}
+}
+
+func (m mana) covers(n mana) bool {
+    if m.w < n.w {
+        return false
+    }
+    m.w -= n.w
+    if m.u < n.u {
+        return false
+    }
+    m.u -= n.u
+    if m.b < n.b {
+        return false
+    }
+    m.b -= n.b
+    if m.r < n.r {
+        return false
+    }
+    m.r -= n.r
+    if m.g < n.g {
+        return false
+    }
+    m.g -= n.g
+    return m.converted() >= n.c
+}
+
 type cost struct {
     mana mana
     tap  bool
