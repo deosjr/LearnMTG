@@ -18,6 +18,10 @@ func (minmaxStrategy) Attacks(p *player, g *game) attackAction {
     return startMinimax(g).(attackAction)
 }
 
+func (minmaxStrategy) PayManaCost(p *player, cost mana) {
+    payNaive(p, cost)
+}
+
 // with perfect information, minmax refuses to play anything
 // if it knows it will lose anyways..
 var maxDepth = 30
@@ -113,7 +117,7 @@ func (n node) evaluate(depth int) float64 {
 
 	// TODO: weights per feature
 	lifeDiff := float64(p.lifeTotal - opp.lifeTotal)
-	return lifeDiff + float64(p.manaTotal) - float64(-depth) + float64(power)*10
+	return lifeDiff + float64(len(p.battlefield.lands)) - float64(-depth) + float64(power)*10
 }
 
 //does the game end in this configuration next state-based check?

@@ -269,7 +269,10 @@ func (g *game) nextDecisionPoint() {
 
 func (g *game) untapStep() {
 	activePlayer := g.getActivePlayer()
-	activePlayer.manaAvailable = activePlayer.manaTotal
+    for i, l := range activePlayer.battlefield.lands {
+        l.tapped = false
+        activePlayer.battlefield.lands[i] = l
+    }
 	for i, c := range activePlayer.battlefield.creatures {
         // TODO: edgecase: flash in creature start of turn
 		c.summoningSickness = false
@@ -381,7 +384,7 @@ func (g *game) play(a cardAction) {
 		delete(p.hand, a.card)
 	}
 
-	p.payMana(a.card.getManaCost())
+	p.strategy.PayManaCost(p, a.card.getManaCost())
 
 	g.stack = append(g.stack, a)
 }

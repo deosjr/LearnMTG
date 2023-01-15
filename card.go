@@ -19,22 +19,37 @@ type Card interface {
 	prereq(*game, int) bool
 	resolve(g *game, a cardAction)
 	getName() string
-	getManaCost() manaCost
+	getManaCost() mana
 	getPrereqs() []prerequisiteFunc
+    getActivatedAbilities() []ActivatedAbility
 }
 
 type card struct {
 	name       string
-	manaCost   manaCost
+	manaCost   mana
 	prereqs    []prerequisiteFunc
+    // abilities
+    activatedAbilities []ActivatedAbility
+    triggeredAbilities []TriggeredAbility
+    staticAbilities    []StaticAbility
 }
 
-type manaCost struct {
+type mana struct {
 	c, w, u, b, r, g int
 }
 
-func (m manaCost) converted() int {
+func (m mana) converted() int {
 	return m.c + m.w + m.u + m.b + m.r + m.g
+}
+
+func (m mana) add(n mana) mana {
+    return mana{c: m.c+n.c, w:m.w+n.w, u:m.u+n.u, b:m.b+n.b, r:m.r+n.r, g:m.g+n.g}
+}
+
+type cost struct {
+    mana mana
+    tap  bool
+    // alternative costs
 }
 
 type prerequisiteFunc func(*player) bool
@@ -43,12 +58,16 @@ func (c card) getName() string {
 	return c.name
 }
 
-func (c card) getManaCost() manaCost {
+func (c card) getManaCost() mana {
 	return c.manaCost
 }
 
 func (c card) getPrereqs() []prerequisiteFunc {
 	return c.prereqs
+}
+
+func (c card) getActivatedAbilities() []ActivatedAbility {
+    return c.activatedAbilities
 }
 
 type sorcery struct {
@@ -82,8 +101,6 @@ func (l *land) prereq(g *game, pindex int) bool {
 func (l *land) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
 	p.landPlayed = true
-	p.manaTotal += 1
-	p.manaAvailable += 1
 	p.battlefield.lands = append(p.battlefield.lands, cardInstance{card: l})
 }
 

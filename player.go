@@ -14,12 +14,10 @@ type player struct {
 	library     orderedCards
 	battlefield battlefield
 	graveyard   orderedCards
+    manaPool    mana
 
 	landPlayed bool
 	decked     bool
-	// simplification for now, think hearthstone
-	manaTotal     int
-	manaAvailable int
 
     strategy Strategy
 }
@@ -91,16 +89,23 @@ func (p *player) draw() {
 	p.library = p.library[1:]
 }
 
-func (p *player) hasMana(m manaCost) bool {
-	return p.manaAvailable >= m.converted()
+func (p *player) manaAvailable() int {
+    manaAvailable := 0
+    for _, l := range p.battlefield.lands {
+        if l.tapped {
+            continue
+        }
+        manaAvailable++
+    }
+    return manaAvailable
 }
 
-func (p *player) payMana(m manaCost) {
-	p.manaAvailable -= m.converted()
+func (p *player) hasMana(m mana) bool {
+	return p.manaAvailable() >= m.converted()
 }
 
 func (p *player) String() string {
-	return fmt.Sprintf("life: %d, mana: %d/%d, hand: %s", p.lifeTotal, p.manaAvailable, p.manaTotal, p.hand.String())
+	return fmt.Sprintf("life: %d, mana: %d/%d, hand: %s", p.lifeTotal, p.manaAvailable(), len(p.battlefield.lands), p.hand.String())
 }
 
 func newPlayer(name string, deckList unorderedCards) *player {

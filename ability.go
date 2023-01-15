@@ -31,13 +31,27 @@ type SpellAbility struct {
 
 type ActivatedAbility struct {
     ability
-    //cost cost
+    cost cost
+}
+
+// TODO: 605.1a An activated ability is a mana ability if it meets the following criteria:
+// - it doesn't require a target
+// - it could add mana to a player's mana pool when it resolves
+// - it is not a loyalty ability
+func (aa ActivatedAbility) isManaAbility() bool {
+    if len(aa.targets) == 0 {
+        return true
+    }
+    noTarget := len(aa.targets) == 1 && aa.targets[0].isUntargeted()
+    return noTarget // && addsMana && noLoyalty
 }
 
 type TriggeredAbility struct {
     ability
     //trigger trigger
 }
+
+// TODO 605.1b similar for triggered abilities
 
 type StaticAbility struct {
     ability

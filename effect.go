@@ -37,3 +37,15 @@ func (e lifegain) apply(g *game, targets []effectTarget) {
         g.getPlayer(int(t.index)).lifeTotal += e.amount
     }
 }
+
+type addMana struct {
+    amount mana
+}
+
+func (e addMana) apply(g *game, targets []effectTarget) {
+    if len(targets) != 1 && targets[0].ttype != you {
+        panic("wrong target type")
+    }
+    p := g.getPlayer(int(targets[0].index))
+    p.manaPool = p.manaPool.add(e.amount)
+}

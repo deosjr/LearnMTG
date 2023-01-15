@@ -10,6 +10,25 @@ const (
 	OPP  = 1
 )
 
+func testManaAvailable(n int) battlefield {
+    lands := make([]cardInstance, n)
+    for i := range lands {
+        lands[i] = cardInstance{card:mountain}
+    }
+    return battlefield{lands: lands}
+}
+
+func testManaTapUntap(t, u int) battlefield {
+    lands := make([]cardInstance, t+u)
+    for i:=0; i<u; i++ {
+        lands[i] = cardInstance{card:mountain}
+    }
+    for i:=u; i<t+u; i++ {
+        lands[i] = cardInstance{card:mountain, tapped:true}
+    }
+    return battlefield{lands: lands}
+}
+
 func TestResolveAction(t *testing.T) {
 	for i, tt := range []struct {
 		name   string
@@ -21,8 +40,8 @@ func TestResolveAction(t *testing.T) {
 			name: "pass action",
 			game: &game{
 				players: []*player{
-					SELF: &player{},
-					OPP:  &player{},
+					SELF: &player{strategy:goldfish{}},
+					OPP:  &player{strategy:goldfish{}},
 				},
 				priorityPlayer: SELF,
 				activePlayer:   SELF,
@@ -31,8 +50,8 @@ func TestResolveAction(t *testing.T) {
 			action: passAction{action{controller: SELF}},
 			want: &game{
 				players: []*player{
-					SELF: &player{},
-					OPP:  &player{},
+					SELF: &player{strategy:goldfish{}},
+					OPP:  &player{strategy:goldfish{}},
 				},
 				priorityPlayer: OPP,
 				activePlayer:   SELF,
@@ -48,9 +67,10 @@ func TestResolveAction(t *testing.T) {
 						hand: map[Card]int{
 							lavaSpike: 1,
 						},
-						manaAvailable: 1,
+                        battlefield: testManaAvailable(1),
+                        strategy: goldfish{},
 					},
-					OPP: &player{},
+					OPP: &player{strategy:goldfish{}},
 				},
 				priorityPlayer: SELF,
 				activePlayer:   SELF,
@@ -65,9 +85,10 @@ func TestResolveAction(t *testing.T) {
 				players: []*player{
 					SELF: &player{
 						hand:          map[Card]int{},
-						manaAvailable: 0,
+                        battlefield:   testManaTapUntap(1, 0),
+                        strategy:      goldfish{},
 					},
-					OPP: &player{},
+					OPP: &player{strategy:goldfish{}},
 				},
 				priorityPlayer: SELF,
 				activePlayer:   SELF,
@@ -79,6 +100,43 @@ func TestResolveAction(t *testing.T) {
 				        targets: []effectTarget{ {index:target(OPP), ttype: targetPlayer} },
 					},
 				},
+			},
+		},
+		{
+			name: "play mountain",
+			game: &game{
+				players: []*player{
+					SELF: &player{
+						hand: map[Card]int{
+							mountain: 1,
+						},
+                        battlefield: testManaAvailable(1),
+                        strategy:    goldfish{},
+					},
+					OPP: &player{strategy:goldfish{}},
+				},
+				priorityPlayer: SELF,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+			},
+			action: cardAction{
+				card:   mountain,
+				action: action{controller: SELF},
+			},
+			want: &game{
+				players: []*player{
+					SELF: &player{
+						hand:          map[Card]int{},
+                        battlefield:   testManaAvailable(2),
+                        landPlayed:    true,
+                        strategy:      goldfish{},
+					},
+					OPP: &player{strategy:goldfish{}},
+				},
+				priorityPlayer: SELF,
+				activePlayer:   SELF,
+				currentStep:    precombatMainPhase,
+                stack:          []cardAction{},
 			},
 		},
 	} {
@@ -103,7 +161,7 @@ func TestResolveVSGoldfish(t *testing.T) {
 			name: "pass action",
 			game: &game{
 				players: []*player{
-					SELF: &player{},
+					SELF: &player{strategy:goldfish{}},
 					OPP:  &player{strategy:goldfish{}},
 				},
 				priorityPlayer: SELF,
@@ -113,7 +171,7 @@ func TestResolveVSGoldfish(t *testing.T) {
 			actions: []Action{passAction{action{controller: SELF}}},
 			want: &game{
 				players: []*player{
-					SELF: &player{},
+					SELF: &player{strategy:goldfish{}},
 					OPP:  &player{strategy:goldfish{}},
 				},
 				priorityPlayer: SELF,
@@ -130,7 +188,8 @@ func TestResolveVSGoldfish(t *testing.T) {
 						hand: map[Card]int{
 							lavaSpike: 1,
 						},
-						manaAvailable: 1,
+                        battlefield:   testManaAvailable(1),
+                        strategy:      goldfish{},
 					},
 					OPP: &player{strategy:goldfish{}},
 				},
@@ -149,8 +208,9 @@ func TestResolveVSGoldfish(t *testing.T) {
 				players: []*player{
 					SELF: &player{
 						hand:          map[Card]int{},
-						manaAvailable: 0,
+                        battlefield:   testManaTapUntap(1, 0),
                         graveyard:     orderedCards{lavaSpike},
+                        strategy:      goldfish{},
 					},
 					OPP: &player{
                         strategy:goldfish{},

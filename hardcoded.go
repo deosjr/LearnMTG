@@ -4,13 +4,22 @@ var (
 	mountain = &land{
 		card: card{
 			name: "Mountain",
+            activatedAbilities: []ActivatedAbility{
+                {
+                    cost: cost{tap:true},
+                    ability: ability{
+                        targets: []targetType{you},
+                        effect:  addMana{amount: mana{r: 1}},
+                    },
+                },
+            },
 		},
 	}
 
 	lavaSpike = &sorcery{
 		card: card{
 			name:     "Lava Spike",
-			manaCost: manaCost{r: 1},
+			manaCost: mana{r: 1},
 		},
         spellAbility: SpellAbility{
             ability{
@@ -23,7 +32,7 @@ var (
     flameRift = &sorcery{
         card: card{
             name:     "Flame Rift",
-            manaCost: manaCost{c: 1, r: 1},
+            manaCost: mana{c: 1, r: 1},
         },
         spellAbility: SpellAbility{
             ability{
@@ -36,7 +45,7 @@ var (
 	falkenrathReaver = &creature{
 		card: card{
 			name:     "Falkenrath Reaver",
-			manaCost: manaCost{c: 1, r: 1},
+			manaCost: mana{c: 1, r: 1},
 		},
 		power:     2,
 		toughness: 2,
