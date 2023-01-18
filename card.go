@@ -129,7 +129,7 @@ func (l *land) prereq(g *game, pindex int) bool {
 func (l *land) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
 	p.landPlayed = true
-	p.battlefield.lands = append(p.battlefield.lands, cardInstance{card: l})
+	p.battlefield.lands = append(p.battlefield.lands, instanceOf(l))
 }
 
 type creature struct {
@@ -144,11 +144,9 @@ func (c *creature) prereq(g *game, pindex int) bool {
 
 func (c *creature) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
-	instance := cardInstance{
-		card:              c,
-		attacking:         -1,
-		summoningSickness: true,
-	}
+    instance := instanceOf(c)
+    instance.attacking = -1
+    instance.summoningSickness = true
 	p.battlefield.creatures = append(p.battlefield.creatures, instance)
 }
 

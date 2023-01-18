@@ -50,10 +50,20 @@ func copyBattlefield(list []cardInstance) []cardInstance {
 
 // the token of type card, i.e. a specific Mountain
 type cardInstance struct {
+    // unique id for targetting etc
+    id                uint64
 	card              Card
 	tapped            bool
 	summoningSickness bool
 	attacking         int
+}
+
+func instanceOf(c Card) cardInstance {
+    return cardInstance{
+        // TODO: better rand to prevent clashes?
+        id:   rand.Uint64(),
+        card: c,
+    }
 }
 
 func (p *player) copy() *player {
@@ -90,8 +100,9 @@ func (p *player) draw() {
 	p.library = p.library[1:]
 }
 
-func (p *player) manaAvailable() mana {
-    manaAvailable := mana{}
+// assumptions: only lands make mana, and only one amount per land!
+func (p *player) manaMap() map[uint64]mana {
+    m := map[uint64]mana{}
     for _, l := range p.battlefield.lands {
         if l.tapped {
             continue
@@ -102,10 +113,18 @@ func (p *player) manaAvailable() mana {
         if !a.isManaAbility() {
             panic("broken assumption on land abilities")
         }
-        m := a.getEffect().(addMana).amount
-        manaAvailable = manaAvailable.add(m)
+        amount := a.getEffect().(addMana).amount
+        m[l.id] = amount
     }
-    return manaAvailable
+    return m
+}
+
+func (p *player) manaAvailable() mana {
+    sum := mana{}
+    for _, v := range p.manaMap() {
+        sum = sum.add(v)
+    }
+    return sum
 }
 
 func (p *player) hasMana(m mana) bool {

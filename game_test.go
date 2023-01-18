@@ -13,7 +13,7 @@ const (
 func testManaAvailable(n int) battlefield {
     lands := make([]cardInstance, n)
     for i := range lands {
-        lands[i] = cardInstance{card:mountain}
+        lands[i] = instanceOf(mountain)
     }
     return battlefield{lands: lands}
 }
@@ -24,9 +24,23 @@ func testManaTapUntap(t, u int) battlefield {
         lands[i] = cardInstance{card:mountain}
     }
     for i:=u; i<t+u; i++ {
-        lands[i] = cardInstance{card:mountain, tapped:true}
+        land := instanceOf(mountain)
+        land.tapped = true
+        lands[i] = land
     }
     return battlefield{lands: lands}
+}
+
+func ignoreInstanceIDs(g *game) {
+    // set cardinstance ids to 0 because we dont care about them
+    for i, ci := range g.players[SELF].battlefield.lands {
+        ci.id = 0
+        g.players[SELF].battlefield.lands[i] = ci
+    }
+    for i, ci := range g.players[OPP].battlefield.lands {
+        ci.id = 0
+        g.players[OPP].battlefield.lands[i] = ci
+    }
 }
 
 func TestResolveAction(t *testing.T) {
@@ -144,6 +158,8 @@ func TestResolveAction(t *testing.T) {
 		tt.want.numPlayers = 2
 		got := tt.game.copy()
 		got.resolveAction(tt.action)
+        ignoreInstanceIDs(got)
+        ignoreInstanceIDs(tt.want)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d: %s) got %#v want %#v", i, tt.name, got, tt.want)
 		}
@@ -232,6 +248,8 @@ func TestResolveVSGoldfish(t *testing.T) {
         }
         opp := got.players[OPP]
         got.resolveAction(opp.strategy.NextAction(opp, got))
+        ignoreInstanceIDs(got)
+        ignoreInstanceIDs(tt.want)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d: %s) got %#v want %#v", i, tt.name, got, tt.want)
 		}

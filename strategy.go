@@ -5,6 +5,8 @@ package main
 type Strategy interface {
     NextAction(*player, *game) Action
     Attacks(*player, *game) attackAction
+    // TODO: change to return an action; validation of actions
+    // should not happen inside of strategy!
     PayManaCost(p *player, cost mana)
 }
 
@@ -37,7 +39,16 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         return passAction{action{controller: p.idx}}
     }
     for c := range p.hand {
-        if _, ok := c.(*land); !ok {
+        if c.getName() != "Mountain" {
+            continue
+        }
+        if !p.canPlayCard(g, c) {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: p.idx}}
+    }
+    for c := range p.hand {
+        if c.getName() != "Island" {
             continue
         }
         if !p.canPlayCard(g, c) {
@@ -55,11 +66,7 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         return cardAction{card: c, action: action{controller: p.idx}}
     }
     for c := range p.hand {
-        s, ok := c.(*sorcery)
-        if !ok {
-            continue
-        }
-        if s.name != "Lava Spike" {
+        if c.getName() != "Lava Spike" {
             continue
         }
         if !p.canPlayCard(g, c) {
@@ -68,11 +75,7 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
         return cardAction{card: c, action: action{controller: p.idx}, targets: []effectTarget{{index:target((p.idx+1)%2),ttype:targetPlayer}}}
     }
     for c := range p.hand {
-        s, ok := c.(*sorcery)
-        if !ok {
-            continue
-        }
-        if s.name != "Flame Rift" {
+        if c.getName() != "Flame Rift" {
             continue
         }
         if !p.canPlayCard(g, c) {
@@ -82,6 +85,15 @@ func (simpleStrategy) NextAction(p *player, g *game) Action {
             continue
         }
         return cardAction{card: c, action: action{controller: p.idx}, targets: []effectTarget{{ttype:eachPlayer}}}
+    }
+    for c := range p.hand {
+        if c.getName() != "Divination" {
+            continue
+        }
+        if !p.canPlayCard(g, c) {
+            continue
+        }
+        return cardAction{card: c, action: action{controller: p.idx}, targets: []effectTarget{{ttype:you}}}
     }
     return passAction{action{controller: p.idx}}
 }
@@ -107,24 +119,36 @@ func attackWithAll(p *player, index int) attackAction {
 
 // assumption: player has the mana to pay
 func payNaive(p *player, cost mana) {
-    needed := cost.converted()
-    for i, l := range p.battlefield.lands {
-        if needed == 0 {
+    available := p.manaMap()
+    // TODO: find/pay colored mana first, then spend rest to pay colorless
+    toTap := map[uint64]struct{}{}
+    for id, m := range available {
+        if cost.converted() == 0 {
             break
         }
-        if l.tapped {
+        toTap[id] = struct{}{}
+        switch {
+        case cost.w > 0 && m.w > 0:
+            cost = cost.sub(m)
+        case cost.u > 0 && m.u > 0:
+            cost = cost.sub(m)
+        case cost.b > 0 && m.b > 0:
+            cost = cost.sub(m)
+        case cost.r > 0 && m.r > 0:
+            cost = cost.sub(m)
+        case cost.g > 0 && m.g > 0:
+            cost = cost.sub(m)
+        default:
+            cost.c -= m.converted()
+        }
+    }
+
+    // actually tap the lands --> should be done outside of strategy!
+    for i, l := range p.battlefield.lands {
+        if _, ok := toTap[l.id]; !ok {
             continue
         }
-        // TODO: assume land only has one activated ability
-        // and that is a mana ability
-        a := l.card.getActivatedAbilities()[0]
-        if !a.isManaAbility() {
-            panic("broken assumption on land abilities")
-        }
-        // TODO: find/pay colored mana first, then spend rest to pay colorless
-        //m := a.getEffect().(addMana).amount
         l.tapped = true
         p.battlefield.lands[i] = l
-        needed--
     }
 }

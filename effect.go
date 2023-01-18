@@ -4,8 +4,26 @@ package main
 // but players never change so this is simpler
 // TODO: imagine targeting a creature by index, in response a creature with smaller
 // index is killed, if battlefield array is reordered this goes very wrong
+// TODO: use cardinstance.ID instead!
 type Effect interface {
 	apply(g *game, targets []effectTarget)
+}
+
+type draw struct {
+    amount int
+}
+
+func (e draw) apply(g *game, targets []effectTarget) {
+    for _, t := range targets {
+        switch t.ttype {
+        case you, targetPlayer:
+            g.getPlayer(int(t.index)).drawN(e.amount)
+        case eachPlayer:
+            for _, p := range g.players {
+                p.drawN(e.amount)
+            }
+        }
+    }
 }
 
 type damage struct {

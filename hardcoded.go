@@ -16,6 +16,21 @@ var (
 		},
 	}
 
+	island = &land{
+		card: card{
+			name: "Island",
+            activatedAbilities: []ActivatedAbility{
+                {
+                    cost: cost{tap:true},
+                    ability: ability{
+                        targets: []targetType{you},
+                        effect:  addMana{amount: mana{u: 1}},
+                    },
+                },
+            },
+		},
+	}
+
 	lavaSpike = &sorcery{
 		card: card{
 			name:     "Lava Spike",
@@ -42,6 +57,19 @@ var (
         },
     }
 
+    divination = &sorcery{
+        card: card{
+            name:     "Divination",
+            manaCost: mana{c: 2, u: 1},
+        },
+        spellAbility: SpellAbility{
+            ability{
+                targets: []targetType{you},
+                effect:  draw{2},
+            },
+        },
+    }
+
 	falkenrathReaver = &creature{
 		card: card{
 			name:     "Falkenrath Reaver",
@@ -59,10 +87,12 @@ var (
 	}
 
 	deckList = unorderedCards{
-		mountain:         12,
-		lavaSpike:        9,
-        flameRift:        3,
-		falkenrathReaver: 6,
+		mountain:         7,
+        island:           7,
+		lavaSpike:        4,
+        flameRift:        4,
+		falkenrathReaver: 4,
+        divination:       4,
 	}
 )
 
