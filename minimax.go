@@ -8,18 +8,18 @@ import (
 // plies are turn segments where the player holds priority
 
 // legacy: minmax is probably not feasible to use
-type minmaxStrategy struct {}
+type minmaxStrategy struct{}
 
 func (minmaxStrategy) NextAction(_ *player, g *game) Action {
-    return startMinimax(g)
+	return startMinimax(g)
 }
 
 func (minmaxStrategy) Attacks(p *player, g *game) attackAction {
-    return startMinimax(g).(attackAction)
+	return startMinimax(g).(attackAction)
 }
 
 func (minmaxStrategy) PayManaCost(p *player, cost mana) {
-    payNaive(p, cost)
+	payNaive(p, cost)
 }
 
 // with perfect information, minmax refuses to play anything
@@ -110,17 +110,17 @@ func (n node) evaluate(depth int) float64 {
 		return infinity - float64(-depth)
 	}
 
-    power := 0
-    for _, c := range p.battlefield.creatures {
-        power += c.card.(*creature).power
-    }
+	power := 0
+	for _, c := range p.battlefield.creatures {
+		power += c.card.(*creature).power
+	}
 
 	// TODO: weights per feature
 	lifeDiff := float64(p.lifeTotal - opp.lifeTotal)
 	return lifeDiff + float64(len(p.battlefield.lands)) - float64(-depth) + float64(power)*10
 }
 
-//does the game end in this configuration next state-based check?
+// does the game end in this configuration next state-based check?
 func (n node) isTerminal() bool {
 	// NOTE: needs to only consider game ending state based actions
 	return n.game.checkStateBasedActions()
@@ -136,59 +136,59 @@ func getActions(g *game, index int) []Action {
 		if !p.canPlayCard(g, card) {
 			continue
 		}
-        switch c := card.(type) {
-        case *sorcery:
-            // TODO: multiple targets
-            ttype := c.spellAbility.getTargets()[0]
-            if ttype.isUntargeted() {
-                actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: []effectTarget{{ttype:ttype}}})
-                return actions
-            }
-            for _, tt := range getTargets(g, c.spellAbility, index) {
-                et := []effectTarget{}
-                for _, t := range tt {
-                    et = append(et, effectTarget{index: t, ttype: ttype})
-                }
-		        actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: et})
-            }
-        default:
-            actions = append(actions, cardAction{card: card, action: action{controller: index}})
-        }
+		switch c := card.(type) {
+		case *sorcery:
+			// TODO: multiple targets
+			ttype := c.spellAbility.getTargets()[0]
+			if ttype.isUntargeted() {
+				actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: []effectTarget{{ttype: ttype}}})
+				return actions
+			}
+			for _, tt := range getTargets(g, c.spellAbility, index) {
+				et := []effectTarget{}
+				for _, t := range tt {
+					et = append(et, effectTarget{index: t, ttype: ttype})
+				}
+				actions = append(actions, cardAction{card: card, action: action{controller: index}, targets: et})
+			}
+		default:
+			actions = append(actions, cardAction{card: card, action: action{controller: index}})
+		}
 	}
 	return actions
 }
 
 func getAttacks(g *game, index int) []Action {
 	// TODO: first attempt, always attack with everything
-    // for minimax, this should return the superset of attackers instead
-    p := g.getPlayer(index)
-    return []Action{attackWithAll(p, index)}
+	// for minimax, this should return the superset of attackers instead
+	p := g.getPlayer(index)
+	return []Action{attackWithAll(p, index)}
 }
 
 func possibleTargets(g *game, t targetType, controller int) []target {
-    switch t {
-    case you:
-        return []target{ target(controller) }
-    case targetPlayer:
-        ts := []target{}
-        for i:=0; i < g.numPlayers; i++ {
-            ts = append(ts, target(i))
-        }
-        return ts
-    }
-    return nil
+	switch t {
+	case you:
+		return []target{target(controller)}
+	case targetPlayer:
+		ts := []target{}
+		for i := 0; i < g.numPlayers; i++ {
+			ts = append(ts, target(i))
+		}
+		return ts
+	}
+	return nil
 }
 
 // TODO: multiple targets
 func getTargets(g *game, a Ability, controller int) [][]target {
-    targets := possibleTargets(g, a.getTargets()[0], controller)
+	targets := possibleTargets(g, a.getTargets()[0], controller)
 	if len(targets) == 0 {
 		return nil
 	}
-    // generate superset of targets
-    superset := [][]target{}
-    for _, t := range targets {
-            superset = append(superset, []target{t})
-    }
-    return superset
+	// generate superset of targets
+	superset := [][]target{}
+	for _, t := range targets {
+		superset = append(superset, []target{t})
+	}
+	return superset
 }

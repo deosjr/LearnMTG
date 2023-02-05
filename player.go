@@ -7,7 +7,7 @@ import (
 
 type player struct {
 	name     string
-    idx      int
+	idx      int
 	deckList unorderedCards
 
 	lifeTotal   int
@@ -15,12 +15,12 @@ type player struct {
 	library     orderedCards
 	battlefield battlefield
 	graveyard   orderedCards
-    manaPool    mana
+	manaPool    mana
 
 	landPlayed bool
 	decked     bool
 
-    strategy Strategy
+	strategy Strategy
 }
 
 type battlefield struct {
@@ -48,24 +48,6 @@ func copyBattlefield(list []cardInstance) []cardInstance {
 	return newlist
 }
 
-// the token of type card, i.e. a specific Mountain
-type cardInstance struct {
-    // unique id for targetting etc
-    id                uint64
-	card              Card
-	tapped            bool
-	summoningSickness bool
-	attacking         int
-}
-
-func instanceOf(c Card) cardInstance {
-    return cardInstance{
-        // TODO: better rand to prevent clashes?
-        id:   rand.Uint64(),
-        card: c,
-    }
-}
-
 func (p *player) copy() *player {
 	newP := &player{}
 	*newP = *p
@@ -77,7 +59,7 @@ func (p *player) copy() *player {
 		newP.hand[k] = v
 	}
 	newP.battlefield = p.battlefield.copy()
-    // TODO: deep copy strategy once you keep state on it
+	// TODO: deep copy strategy once you keep state on it
 	return newP
 }
 
@@ -102,29 +84,29 @@ func (p *player) draw() {
 
 // assumptions: only lands make mana, and only one amount per land!
 func (p *player) manaMap() map[uint64]mana {
-    m := map[uint64]mana{}
-    for _, l := range p.battlefield.lands {
-        if l.tapped {
-            continue
-        }
-        // TODO: assume land only has one activated ability
-        // and that is a mana ability
-        a := l.card.getActivatedAbilities()[0]
-        if !a.isManaAbility() {
-            panic("broken assumption on land abilities")
-        }
-        amount := a.getEffect().(addMana).amount
-        m[l.id] = amount
-    }
-    return m
+	m := map[uint64]mana{}
+	for _, l := range p.battlefield.lands {
+		if l.tapped {
+			continue
+		}
+		// TODO: assume land only has one activated ability
+		// and that is a mana ability
+		a := l.card.getActivatedAbilities()[0]
+		if !a.isManaAbility() {
+			panic("broken assumption on land abilities")
+		}
+		amount := a.getEffect().(addMana).amount
+		m[l.id] = amount
+	}
+	return m
 }
 
 func (p *player) manaAvailable() mana {
-    sum := mana{}
-    for _, v := range p.manaMap() {
-        sum = sum.add(v)
-    }
-    return sum
+	sum := mana{}
+	for _, v := range p.manaMap() {
+		sum = sum.add(v)
+	}
+	return sum
 }
 
 func (p *player) hasMana(m mana) bool {
@@ -148,7 +130,7 @@ func newPlayer(idx int, name string, deckList unorderedCards) *player {
 	}
 	return &player{
 		name:      name,
-        idx:       idx,
+		idx:       idx,
 		lifeTotal: 20,
 		library:   shuffled,
 		hand:      unorderedCards{},
@@ -164,7 +146,7 @@ func (p *player) creaturesThatCanAttack() []int {
 		}
 		creatures = append(creatures, i)
 	}
-    return creatures
+	return creatures
 }
 
 // this means we only check prereqs against what we know

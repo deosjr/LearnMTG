@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/MagicTheGathering/mtg-sdk-go"
@@ -21,17 +22,35 @@ type Card interface {
 	getName() string
 	getManaCost() mana
 	getPrereqs() []prerequisiteFunc
-    getActivatedAbilities() []ActivatedAbility
+	getActivatedAbilities() []ActivatedAbility
 }
 
 type card struct {
-	name       string
-	manaCost   mana
-	prereqs    []prerequisiteFunc
-    // abilities
-    activatedAbilities []ActivatedAbility
-    triggeredAbilities []TriggeredAbility
-    staticAbilities    []StaticAbility
+	name     string
+	manaCost mana
+	prereqs  []prerequisiteFunc
+	// abilities
+	activatedAbilities []ActivatedAbility
+	triggeredAbilities []TriggeredAbility
+	staticAbilities    []StaticAbility
+}
+
+// the token of type card, i.e. a specific Mountain
+type cardInstance struct {
+	// unique id for targetting etc
+	id                uint64
+	card              Card
+	tapped            bool
+	summoningSickness bool
+	attacking         int
+}
+
+func instanceOf(c Card) cardInstance {
+	return cardInstance{
+		// TODO: better rand to prevent clashes?
+		id:   rand.Uint64(),
+		card: c,
+	}
 }
 
 type mana struct {
@@ -43,41 +62,41 @@ func (m mana) converted() int {
 }
 
 func (m mana) add(n mana) mana {
-    return mana{c: m.c+n.c, w:m.w+n.w, u:m.u+n.u, b:m.b+n.b, r:m.r+n.r, g:m.g+n.g}
+	return mana{c: m.c + n.c, w: m.w + n.w, u: m.u + n.u, b: m.b + n.b, r: m.r + n.r, g: m.g + n.g}
 }
 
 func (m mana) sub(n mana) mana {
-    return mana{c: m.c-n.c, w:m.w-n.w, u:m.u-n.u, b:m.b-n.b, r:m.r-n.r, g:m.g-n.g}
+	return mana{c: m.c - n.c, w: m.w - n.w, u: m.u - n.u, b: m.b - n.b, r: m.r - n.r, g: m.g - n.g}
 }
 
 func (m mana) covers(n mana) bool {
-    if m.w < n.w {
-        return false
-    }
-    m.w -= n.w
-    if m.u < n.u {
-        return false
-    }
-    m.u -= n.u
-    if m.b < n.b {
-        return false
-    }
-    m.b -= n.b
-    if m.r < n.r {
-        return false
-    }
-    m.r -= n.r
-    if m.g < n.g {
-        return false
-    }
-    m.g -= n.g
-    return m.converted() >= n.c
+	if m.w < n.w {
+		return false
+	}
+	m.w -= n.w
+	if m.u < n.u {
+		return false
+	}
+	m.u -= n.u
+	if m.b < n.b {
+		return false
+	}
+	m.b -= n.b
+	if m.r < n.r {
+		return false
+	}
+	m.r -= n.r
+	if m.g < n.g {
+		return false
+	}
+	m.g -= n.g
+	return m.converted() >= n.c
 }
 
 type cost struct {
-    mana mana
-    tap  bool
-    // alternative costs
+	mana mana
+	tap  bool
+	// alternative costs
 }
 
 type prerequisiteFunc func(*player) bool
@@ -95,12 +114,12 @@ func (c card) getPrereqs() []prerequisiteFunc {
 }
 
 func (c card) getActivatedAbilities() []ActivatedAbility {
-    return c.activatedAbilities
+	return c.activatedAbilities
 }
 
 type sorcery struct {
 	card
-    spellAbility SpellAbility
+	spellAbility SpellAbility
 }
 
 func (s *sorcery) prereq(g *game, pindex int) bool {
@@ -109,8 +128,8 @@ func (s *sorcery) prereq(g *game, pindex int) bool {
 
 func (s *sorcery) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
-    f := s.spellAbility.getEffect()
-    f.apply(g, a.targets)
+	f := s.spellAbility.getEffect()
+	f.apply(g, a.targets)
 	p.graveyard = append(p.graveyard, s)
 }
 
@@ -144,9 +163,9 @@ func (c *creature) prereq(g *game, pindex int) bool {
 
 func (c *creature) resolve(g *game, a cardAction) {
 	p := g.getPlayer(a.controller)
-    instance := instanceOf(c)
-    instance.attacking = -1
-    instance.summoningSickness = true
+	instance := instanceOf(c)
+	instance.attacking = -1
+	instance.summoningSickness = true
 	p.battlefield.creatures = append(p.battlefield.creatures, instance)
 }
 

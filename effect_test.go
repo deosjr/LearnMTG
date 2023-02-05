@@ -25,7 +25,7 @@ func TestApplySelfEffect(t *testing.T) {
 			want: player{lifeTotal: 4},
 		},
 	} {
-        tt.effect.apply(tt.game, []effectTarget{{index:tt.target, ttype:you}})
+		tt.effect.apply(tt.game, []effectTarget{{index: tt.target, ttype: you}})
 		got := *tt.game.getPlayer(int(tt.target))
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
@@ -42,7 +42,7 @@ func TestApplyPlayerEffect(t *testing.T) {
 	}{
 		{
 			target: target(OPP),
-            effect: damage{3},
+			effect: damage{3},
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
@@ -54,7 +54,7 @@ func TestApplyPlayerEffect(t *testing.T) {
 		},
 		{
 			target: target(SELF),
-            effect: damage{3},
+			effect: damage{3},
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
@@ -65,7 +65,7 @@ func TestApplyPlayerEffect(t *testing.T) {
 			want: player{lifeTotal: 1},
 		},
 	} {
-        tt.effect.apply(tt.game, []effectTarget{{index:tt.target, ttype:targetPlayer}})
+		tt.effect.apply(tt.game, []effectTarget{{index: tt.target, ttype: targetPlayer}})
 		got := *tt.game.getPlayer(int(tt.target))
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%d) got %v want %v", i, got, tt.want)
@@ -81,7 +81,7 @@ func TestApplyEachPlayerEffect(t *testing.T) {
 		wantP2 player
 	}{
 		{
-            effect: damage{4},
+			effect: damage{4},
 			game: &game{
 				numPlayers: 2,
 				players: []*player{
@@ -93,7 +93,7 @@ func TestApplyEachPlayerEffect(t *testing.T) {
 			wantP2: player{lifeTotal: 4},
 		},
 	} {
-        tt.effect.apply(tt.game, []effectTarget{{ttype:eachPlayer}})
+		tt.effect.apply(tt.game, []effectTarget{{ttype: eachPlayer}})
 		gotP1 := *tt.game.getPlayer(int(SELF))
 		if !reflect.DeepEqual(gotP1, tt.wantP1) {
 			t.Errorf("%d) P1 got %v want %v", i, gotP1, tt.wantP1)

@@ -92,11 +92,11 @@ func newGame(startingPlayer int, players ...*player) *game {
 func (g *game) loop() {
 	for {
 		a := g.getPlayerAction()
-        if _, ok := a.(passAction); !ok {
-            if at, ok := a.(attackAction); !ok || len(at.attackers) > 0 {
-                g.debug()
-            }
-        }
+		if _, ok := a.(passAction); !ok {
+			if at, ok := a.(attackAction); !ok || len(at.attackers) > 0 {
+				g.debug()
+			}
+		}
 		var ac cardAction
 		var stacklength int
 		if len(g.stack) != 0 {
@@ -110,11 +110,11 @@ func (g *game) loop() {
 			if len(g.stack) < stacklength {
 				// ac resolved
 				for _, target := range ac.targets {
-                    if target.ttype.isUntargeted() {
-					    fmt.Printf("%s resolves by %s \n", ac.card.getName(), g.getPlayer(ac.controller).name)
-                    } else {
-					    fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(int(target.index)).name)
-                    }
+					if target.ttype.isUntargeted() {
+						fmt.Printf("%s resolves by %s \n", ac.card.getName(), g.getPlayer(ac.controller).name)
+					} else {
+						fmt.Printf("%s resolves by %s targeting %s \n", ac.card.getName(), g.getPlayer(ac.controller).name, g.getPlayer(int(target.index)).name)
+					}
 				}
 			}
 		case cardAction:
@@ -269,12 +269,12 @@ func (g *game) nextDecisionPoint() {
 
 func (g *game) untapStep() {
 	activePlayer := g.getActivePlayer()
-    for i, l := range activePlayer.battlefield.lands {
-        l.tapped = false
-        activePlayer.battlefield.lands[i] = l
-    }
+	for i, l := range activePlayer.battlefield.lands {
+		l.tapped = false
+		activePlayer.battlefield.lands[i] = l
+	}
 	for i, c := range activePlayer.battlefield.creatures {
-        // TODO: edgecase: flash in creature start of turn
+		// TODO: edgecase: flash in creature start of turn
 		c.summoningSickness = false
 		c.tapped = false
 		activePlayer.battlefield.creatures[i] = c
@@ -390,9 +390,9 @@ func (g *game) isMainPhase() bool {
 }
 
 func (g *game) getPlayerAction() Action {
-    p := g.players[g.priorityPlayer]
-    if g.currentStep == declareAttackersStep && g.declarations == 0 {
-        return p.strategy.Attacks(p, g)
-    }
-    return p.strategy.NextAction(p, g)
+	p := g.players[g.priorityPlayer]
+	if g.currentStep == declareAttackersStep && g.declarations == 0 {
+		return p.strategy.Attacks(p, g)
+	}
+	return p.strategy.NextAction(p, g)
 }
